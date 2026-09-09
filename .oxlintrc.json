@@ -1,0 +1,31 @@
+{
+  "extends": ["oxlint:recommended"],
+  "rules": {
+    "no-unused-vars": "error",
+    "no-console": "warn",
+    "eqeqeq": "error",
+    "no-var": "error",
+    "prefer-const": "warn",
+    "no-implicit-coercion": "warn",
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "warn",
+    "jsx-a11y/alt-text": "warn",
+    "jsx-a11y/no-autofocus": "warn"
+  },
+  "ignorePatterns": ["node_modules", "dist", "build"],
+  "settings": {
+    "import/resolver": {
+      "alias": {
+        "map": [
+          ["components", "./src/components"],
+          ["ui", "./src/components/ui"],
+          ["lib", "./src/lib"],
+          ["hooks", "./src/hooks"],
+          ["utils", "./src/utils"]
+        ],
+        "extensions": [".ts", ".tsx", ".js", ".jsx"]
+      }
+    }
+  }
+}
+
