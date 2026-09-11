@@ -1,11 +1,19 @@
+import { resolve } from 'node:path';
 import { defineConfig } from 'vitest/config';
-import tsconfigPaths from 'vite-tsconfig-paths';
+import swc from 'unplugin-swc';
 
 export default defineConfig({
-  plugins: [tsconfigPaths()],
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, 'src'),
+      '@modules': resolve(__dirname, 'src/modules'),
+      '@db': resolve(__dirname, 'src/db'),
+    },
+  },
+  plugins: [swc.vite({ module: { type: 'es6' } })],
   test: {
     globals: true,
     root: './',
-    include: ['**/*.e2e-spec.ts'],
+    include: ['test/**/*.e2e-spec.ts'],
   },
 });

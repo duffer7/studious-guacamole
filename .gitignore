@@ -3,6 +3,7 @@
 **/build/
 
 backend/tsconfig.build.tsbuildinfo
+**/*.tsbuildinfo
 
 # Игнорировать .env файлы во всех вложенных директориях и пакетах
 **/.env
@@ -30,3 +31,4 @@ backend/tsconfig.build.tsbuildinfo
 # Игнорировать все DS_Store файлы
 .DS_Store
 **/.DS_Store
+

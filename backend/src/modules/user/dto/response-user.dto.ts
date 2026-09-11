@@ -1,33 +1,33 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { ResponseUserType } from "@modules/user/types/response-user.type";
-import { BaseIdDto } from "@common/dto/base-id.dto";
+import { ApiProperty } from '@nestjs/swagger';
+import type { UserRow } from '@db/schema';
 
-export class ResponseUserDto extends BaseIdDto {
-  @ApiProperty({ example: "user@example.com" })
-  email: string;
+export type PublicUser = Omit<UserRow, 'password'>;
 
-  @ApiProperty({ example: "artemii" })
+export class ResponseUserDto {
+  @ApiProperty({ example: 1 })
+  id: number;
+
+  @ApiProperty({ example: 'artemii' })
   username: string;
 
-  @ApiProperty({ example: "Артемий", nullable: true })
+  @ApiProperty({ example: 'user@example.com' })
+  email: string;
+
+  @ApiProperty({ example: 'Артемий', nullable: true })
   displayName: string | null;
 
-  @ApiProperty({ example: "https://example.com/avatar.png", nullable: true })
+  @ApiProperty({ example: 'https://example.com/avatar.png', nullable: true })
   avatarUrl: string | null;
 
-  @ApiProperty({ example: "2026-09-10T11:25:00Z" })
+  @ApiProperty({ example: '2026-09-10T11:25:00.000Z' })
   createdAt: string;
 
-  // @ApiProperty({ example: '2026-09-10T11:30:00Z' })
-  // updatedAt: Date;
-
-  constructor({ id, email, username, displayName, avatarUrl, createdAt }: ResponseUserType) {
-    super();
-    this.id = id;
-    this.email = email;
-    this.username = username;
-    this.displayName = displayName;
-    this.avatarUrl = avatarUrl;
-    this.createdAt = createdAt;
+  constructor(row: PublicUser) {
+    this.id = row.id;
+    this.username = row.username;
+    this.email = row.email;
+    this.displayName = row.displayName;
+    this.avatarUrl = row.avatarUrl;
+    this.createdAt = row.createdAt.toISOString();
   }
 }

@@ -4,7 +4,6 @@
   "jsc": {
     "parser": {
       "syntax": "typescript",
-      "tsx": false,
       "decorators": true,
       "dynamicImport": true
     },
@@ -13,19 +12,9 @@
       "decoratorMetadata": true
     },
     "target": "es2023",
-    "keepClassNames": true,
-    "baseUrl": "./",
-    "paths": {
-      "@/*": ["src/*"],
-      "@modules/*": ["src/modules/*"],
-      "@common/*": ["src/common/*"],
-      "@services/*": ["src/services/*"]
-    }
+    "keepClassNames": true
   },
   "module": {
-    "type": "es6",
-    "strict": true,
-    "noInterop": false
-  },
-  "exclude": ["node_modules", "test"]
+    "type": "commonjs"
+  }
 }

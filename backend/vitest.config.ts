@@ -1,13 +1,20 @@
+import { resolve } from 'node:path';
 import { defineConfig } from 'vitest/config';
-import tsconfigPaths from 'vite-tsconfig-paths';
+import swc from 'unplugin-swc';
 
 export default defineConfig({
-  // Resolves the path aliases declared in tsconfig.json, including the ones
-  // added by `nest g library`.
-  plugins: [tsconfigPaths()],
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, 'src'),
+      '@modules': resolve(__dirname, 'src/modules'),
+      '@db': resolve(__dirname, 'src/db'),
+    },
+  },
+  // Transpile with SWC so NestJS DI receives the decorator metadata it relies on.
+  plugins: [swc.vite({ module: { type: 'es6' } })],
   test: {
     globals: true,
     root: './',
-    include: ['**/*.spec.ts'],
+    include: ['src/**/*.spec.ts'],
   },
 });

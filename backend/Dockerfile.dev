@@ -1,14 +1,7 @@
-FROM node:24
+FROM node:22
 WORKDIR /app
-# Install deps from the lockfile only (deterministic + cache-friendly).
-# `--ignore-scripts` skips the `postinstall` (prisma skills sync) here: it
-# needs the app sources, which are copied in the next layer. Running it in
-# this layer would also bust the dependency cache on every source change.
 COPY package.json package-lock.json ./
-RUN npm ci --ignore-scripts
+RUN npm ci
 COPY . .
-# Run the deferred `postinstall` now that sources are present, as its own
-# layer so source edits don't re-run `npm ci`.
-RUN npm run postinstall
 EXPOSE 3000
 CMD ["npm", "run", "start:dev"]
