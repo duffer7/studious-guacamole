@@ -1,0 +1,27 @@
+менять#!/bin/sh
+#
+# Pre-commit hook: type-check the backend when backend sources change.
+#
+# Enabled via `git config core.hooksPath .githooks` (see README / setup note).
+# To skip once (e.g. WIP commit): `git commit --no-verify`.
+
+set -e
+
+# Files staged for this commit.
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+
+# Only run when something under backend/ is staged.
+if ! printf '%s\n' "$staged" | grep -q '^backend/'; then
+  exit 0
+fi
+
+echo "pre-commit: backend changes detected, running typecheck..."
+
+if [ -f backend/package.json ] && command -v npm >/dev/null 2>&1; then
+  # Run inside the backend workspace. `--if-present` keeps this hook from
+  # hard-failing in repos/checkouts where the script isn't defined.
+  (cd backend && npm run --silent typecheck)
+else
+  echo "pre-commit: npm not found, skipping typecheck." >&2
+fi
+

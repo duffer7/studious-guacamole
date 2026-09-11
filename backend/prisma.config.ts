@@ -7,6 +7,9 @@ type PrismaConfig = ReturnType<typeof definePrismaConfig>;
 const config: PrismaConfig = definePrismaConfig({
   orm: ormConfig({
     contract: "./src/services/prisma/contract.prisma",
+    migrations: {
+      dir: "./src/services/prisma/migrations"
+    },
     db: {
       connection: process.env['DATABASE_URL']!,
     },

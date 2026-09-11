@@ -23,7 +23,57 @@
 
 ## Description
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+Backend-сервис мессенджера на [NestJS](https://github.com/nestjs/nest) 12, ESM
+(`"type": "module"`), Prisma ORM (v8), Redis, gRPC/LiveKit.
+
+## Toolchain — как устроена сборка
+
+Ключевое решение проекта: **весь код пишется с path-алиасами (`@/*`) и без
+расширений в импортах** — обычный TS-стиль.
+
+| Задача              | Инструмент                                                 | Где настроено         |
+| ------------------- | ---------------------------------------------------------- | --------------------- |
+| Сборка (dev + prod) | **tsup** (esbuild + `unplugin-swc`)                        | `tsup.config.ts`      |
+| Транспиляция        | **SWC**                                                    | `.swcrc`              |
+| Dev-runner          | **tsup --watch** + **node --watch** (через `concurrently`) | `package.json`        |
+| Проверка типов      | **tsc** (`--noEmit`)                                       | `tsconfig.build.json` |
+| Тесты               | **Vitest** (`vite-tsconfig-paths`)                         | `vitest.config.ts`    |
+
+Почему так:
+
+- **`tsup` (esbuild) — единая сборка для dev и prod.** esbuild сам не умеет
+  `emitDecoratorMetadata`, поэтому подключён плагин **`unplugin-swc`** на базе
+  `.swcrc`. Так что DI в Nest получает корректную metadata.
+- **Alias-резолвинг делается на этапе сборки** (`esbuild.alias` в
+  `tsup.config.ts`), а не в рантайме. Node сам `@/*` не умеет — поэтому dev тоже
+  гоняется через сборку, а не через `on-the-fly`-транспайлеры вроде `tsx`.
+- Почему не `tsx` / `@swc-node` / `nest start --watch` (dev в ESM)? У каждого
+  проблема: `tsx` (esbuild) **не эмитит decorator metadata** → падает Swagger и
+  DI; `nest start --watch` и `@swc-node` **не резолвят `@/*` в рантайме Node**.
+  Единый бандл через `tsup` решает обе проблемы сразу.
+- **Все зависимости и нативные модули** (Prisma, gRPC, ioredis, Nest) помечены
+  `external` и резолвятся из `node_modules` в рантайме.
+
+### Path aliases
+
+Alias `@/*` резолвится **на этапе сборки** (`esbuild.alias` в `tsup.config.ts`),
+поэтому к моменту запуска в `dist/main.js` их уже нет — всё вшито в бандл.
+
+Для статического анализа/типов они объявлены в `tsconfig.json` (и
+проксируются в `tsup.config.ts`). Дублирование в `.swcrc` — не требуется для
+резолва путей, `unplugin-swc` берёт их из tsconfig.
+
+```
+@/*          -> src/*
+@modules/*   -> src/modules/*
+@common/*    -> src/common/*
+@services/*  -> src/services/*
+```
+
+> **Правило:** внутри `src/` импорты всегда через алиасы (`@/...`), никогда не
+> смешивать относительные пути и алиасы к одному файлу. Смешивание
+> (`./app.service` и `@/app.service`) приводит к **двойному бандлингу** класса и
+> падению DI в prod.
 
 ## Project setup
 
@@ -31,24 +81,71 @@
 $ npm install
 ```
 
+Требуется **Node.js 20+**.
+
+> Docker: базовый образ — **`node:20` (Debian)**. `@swc/core` и `@prisma/*` —
+> нативные модули под glibc, поэтому `node:20-alpine` (musl) без дополнительного
+> слоя не подходит (SWC падает с `Failed to load @swc/core`). Если всё же нужен
+> Alpine — добавь `apk add --no-cache libc6-compat libstdc++`.
+
 ## Compile and run the project
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
+# dev: tsup --watch пересобирает dist, node --watch перезапускает процесс
 $ npm run start:dev
 
-# production mode
+# prod-сборка (tsup -> dist/main.js)
+$ npm run build
+
+# prod-запуск собранного бандла
 $ npm run start:prod
+
+# debug уже собранного бандла
+$ npm run start:debug
+
+# проверка типов отдельно (SWC/tsup типы НЕ проверяют)
+$ npm run typecheck
 ```
+
+> ⚠️ `npm run build` (tsup/SWC) **не выполняет проверку типов**. Перед коммитом
+> или в CI обязательно гоняй `npm run typecheck`.
+
+> ℹ️ `start:dev` устроен так: сначала **первичная сборка** (`tsup`), чтобы
+> `dist/main.js` гарантированно существовал, затем `concurrently` запускает
+> `tsup --watch` (инкрементальная сборка) и `node --watch dist/main.js`
+> (автоперезапуск). Первичная сборка нужна, чтобы `node --watch` не упал на
+> отсутствующем файле (гонка старта). Это даёт instant-reload без
+> on-the-fly-транспайлеров и без проблем с alias/metadata.
+
+## Docker (dev)
+
+`docker-compose.yml` (в корне репозитория) поднимает `backend`, `frontend` и
+`db` (Postgres 15). Backend в dev-режиме запускается через `npm run start:dev`
+(первичная сборка `tsup`, затем `tsup --watch` + `node --watch` внутри
+контейнера).
+
+```bash
+# из корня проекта
+$ docker compose up --build
+
+# ВАЖНО: после смены зависимостей (package.json) нужно пересоздать
+# анонимный том node_modules — иначе контейнер будет использовать старые модули
+# (напр. "tsx: not found" или "Failed to load @swc/core"):
+$ docker compose down -v --remove-orphans
+$ docker compose up --build
+```
+
+> Обновить контейнер `backend` после правок кода не нужно — volume `./backend:/app`
+> прокидывает изменения, а `tsup --watch` внутри пересобирает бандл.
 
 ## Run tests
 
 ```bash
 # unit tests
 $ npm run test
+
+# watch mode
+$ npm run test:watch
 
 # e2e tests
 $ npm run test:e2e
@@ -114,4 +211,8 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
 
 ## Prisma
-```npx prisma@latest contract emit```
+
+1. change contract.prisma
+2. `npx prisma@latest contract emit`
+3. `npx prisma@latest migration plan --name <migration_name>`
+4. `npx prisma@latest db migrate`
