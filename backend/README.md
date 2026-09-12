@@ -292,6 +292,9 @@ node -e "import('otplib').then(m => console.log(m.generateSync({ secret: 'ВАШ
 npm run test       # unit
 npm run test:e2e   # e2e
 npm run test:cov   # coverage
+npx vitest run src/modules/user/users.repository.spec.ts # a file
+npx vitest run src/modules/user # path
+npx vitest run -t "UsersRepository" # pattern
 ```
 
 ## Docker (dev)

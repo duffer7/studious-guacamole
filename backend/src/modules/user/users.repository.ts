@@ -3,13 +3,6 @@ import { eq } from 'drizzle-orm';
 import { DB, type Database } from '@db/db.provider';
 import { users, type NewUserRow, type UserRow } from '@db/schema';
 
-/**
- * Слой доступа к данным для пользователей (паттерн Repository).
- *
- * Репозиторий отвечает только за запросы к БД через Drizzle и не содержит
- * бизнес-правил (хеширование пароля, DTO, проверки). Всё это — забота
- * `UsersService`.
- */
 @Injectable()
 export class UsersRepository {
   constructor(@Inject(DB) private readonly db: Database) {}
@@ -38,11 +31,7 @@ export class UsersRepository {
     return created;
   }
 
-  async updateMfa(
-    userId: number,
-    mfaEnabled: boolean,
-    mfaSecret: string | null,
-  ): Promise<UserRow> {
+  async updateMfa(userId: number, mfaEnabled: boolean, mfaSecret: string | null): Promise<UserRow> {
     const [updated] = await this.db
       .update(users)
       .set({ mfaEnabled, mfaSecret })
