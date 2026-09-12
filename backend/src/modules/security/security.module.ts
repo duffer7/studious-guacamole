@@ -3,6 +3,10 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { TokenStoreService } from './token-store.service';
+import { RateLimitService } from './rate-limit.service';
+import { RateLimitInterceptor } from './rate-limit.interceptor';
+import { LockoutService } from './lockout.service';
 
 /**
  * Общий модуль безопасности.
@@ -21,7 +25,21 @@ import { JwtAuthGuard } from './jwt-auth.guard';
       signOptions: { expiresIn: '15m' },
     }),
   ],
-  providers: [JwtStrategy, JwtAuthGuard],
-  exports: [JwtModule, JwtAuthGuard],
+  providers: [
+    JwtStrategy,
+    JwtAuthGuard,
+    TokenStoreService,
+    RateLimitService,
+    RateLimitInterceptor,
+    LockoutService,
+  ],
+  exports: [
+    JwtModule,
+    JwtAuthGuard,
+    TokenStoreService,
+    RateLimitService,
+    RateLimitInterceptor,
+    LockoutService,
+  ],
 })
 export class SecurityModule {}

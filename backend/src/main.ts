@@ -4,10 +4,13 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from '@/app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
+  // Доверяем первому прокси (Nginx/балансировщик) — нужно для корректного req.ip в rate limit.
+  app.set('trust proxy', 1);
   app.useLogger(app.get(Logger));
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsOptional, IsString, Length, Matches, MaxLength, MinLength } from 'class-validator';
 
 export class LoginDto {
   @ApiProperty({ example: 'duffer7', description: 'Имя пользователя' })
@@ -21,6 +21,7 @@ export class LoginDto {
   })
   @IsOptional()
   @IsString()
-  @MaxLength(10)
+  @Length(6, 6)
+  @Matches(/^\d{6}$/, { message: 'code must be exactly 6 digits' })
   code?: string;
 }

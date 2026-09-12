@@ -9,6 +9,7 @@ import {
 import { UsersService } from '@modules/user/users.service';
 import { CreateUserDto } from '@modules/user/dto/create-user.dto';
 import { ResponseUserDto } from '@modules/user/dto/response-user.dto';
+import { PublicUserDto } from '@modules/user/dto/public-user.dto';
 import { JwtAuthGuard } from '@modules/security/jwt-auth.guard';
 import type { AuthUser } from '@modules/security/types';
 
@@ -39,9 +40,9 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Получить всех пользователей' })
-  @ApiOkResponse({ type: ResponseUserDto, isArray: true })
-  async findAll(): Promise<ResponseUserDto[]> {
+  @ApiOkResponse({ type: PublicUserDto, isArray: true })
+  async findAll(): Promise<PublicUserDto[]> {
     const users = await this.usersService.findAll();
-    return users.map((user) => new ResponseUserDto(user));
+    return users.map((user) => new PublicUserDto(user));
   }
 }

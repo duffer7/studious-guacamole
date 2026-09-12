@@ -1,48 +1,34 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { Injectable } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { DB, type Database } from '@db/db.provider';
-import { users, type NewUserRow, type UserRow } from '@db/schema';
+import type { NewUserRow, UserRow } from '@db/schema';
 import type { PublicUser } from '@modules/user/dto/response-user.dto';
+import { UsersRepository } from '@modules/user/users.repository';
 
+/**
+ * Бизнес-логика над пользователями. Доступ к БД делегирован
+ * `UsersRepository`, а здесь остаются правила уровня приложения
+ * (например, хеширование пароля перед сохранением).
+ */
 @Injectable()
 export class UsersService {
-  constructor(@Inject(DB) private readonly db: Database) {}
-
-  async findAll(): Promise<PublicUser[]> {
-    return this.db.query.users.findMany({
-      columns: { password: false },
-      orderBy: (users, { asc }) => [asc(users.id)],
-    });
+  constructor(private readonly repo: UsersRepository) {}
+  findAll(): Promise<PublicUser[]> {
+    return this.repo.findAllPublic();
   }
 
-  async findById(id: number): Promise<UserRow | undefined> {
-    return this.db.query.users.findFirst({
-      where: eq(users.id, id),
-    });
+  findById(id: number): Promise<UserRow | undefined> {
+    return this.repo.findById(id);
   }
 
-  async findByUsername(username: string): Promise<UserRow | undefined> {
-    return this.db.query.users.findFirst({
-      where: eq(users.username, username),
-    });
+  findByUsername(username: string): Promise<UserRow | undefined> {
+    return this.repo.findByUsername(username);
   }
 
-  async setMfa(userId: number, mfaEnabled: boolean, mfaSecret: string | null): Promise<UserRow> {
-    const [updated] = await this.db
-      .update(users)
-      .set({ mfaEnabled, mfaSecret })
-      .where(eq(users.id, userId))
-      .returning();
-    return updated;
+  setMfa(userId: number, mfaEnabled: boolean, mfaSecret: string | null): Promise<UserRow> {
+    return this.repo.updateMfa(userId, mfaEnabled, mfaSecret);
   }
-
   async create(input: NewUserRow): Promise<UserRow> {
     const password = await bcrypt.hash(input.password, 10);
-    const [created] = await this.db
-      .insert(users)
-      .values({ ...input, password })
-      .returning();
-    return created;
+    return this.repo.insert({ ...input, password });
   }
 }

@@ -1,11 +1,19 @@
-/** Payload stored inside the access/refresh JWT. */
+export type TokenType = 'access' | 'refresh';
+
 export interface JwtPayload {
   sub: number;
   username: string;
+  sid: string;
+  jti: string;
+  typ: TokenType;
+  /** Заполняется автоматически из `expiresIn`. Unix-секунды. */
+  exp?: number;
 }
 
-/** Shape attached to `req.user` after `JwtAuthGuard` runs. */
 export interface AuthUser {
   userId: number;
   username: string;
+  sid: string;
+  jti: string;
+  exp: number;
 }
