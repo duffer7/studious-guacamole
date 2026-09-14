@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { TokenStoreService } from './token-store.service';
+import { TokenStoreService } from '@modules/security/token-store.service';
 import type { RedisClient } from '@/redis/redis.provider';
 
 /** Пайплайн-мок: собирает вызовы, `exec` резолвится. */

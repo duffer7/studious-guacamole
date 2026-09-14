@@ -9,8 +9,8 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
-import { RateLimitService } from './rate-limit.service';
-import { RATE_LIMIT_KEY, type RateLimitOptions } from './rate-limit.decorator';
+import { RateLimitService } from '@modules/security/rate-limit.service';
+import { RATE_LIMIT_KEY, type RateLimitOptions } from '@modules/security/rate-limit.decorator';
 
 @Injectable()
 export class RateLimitInterceptor implements NestInterceptor {

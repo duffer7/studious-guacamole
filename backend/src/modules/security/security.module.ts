@@ -1,12 +1,12 @@
 import { Global, Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
-import { JwtStrategy } from './jwt.strategy';
-import { JwtAuthGuard } from './jwt-auth.guard';
-import { TokenStoreService } from './token-store.service';
-import { RateLimitService } from './rate-limit.service';
-import { RateLimitInterceptor } from './rate-limit.interceptor';
-import { LockoutService } from './lockout.service';
+import { JwtStrategy } from '@modules/security/jwt.strategy';
+import { JwtAuthGuard } from '@modules/security/jwt-auth.guard';
+import { TokenStoreService } from '@modules/security/token-store.service';
+import { RateLimitService } from '@modules/security/rate-limit.service';
+import { RateLimitInterceptor } from '@modules/security/rate-limit.interceptor';
+import { LockoutService } from '@modules/security/lockout.service';
 
 /**
  * Общий модуль безопасности.

@@ -12,8 +12,8 @@ import { UsersService } from '@modules/user/users.service';
 import type { AuthUser, JwtPayload } from '@modules/security/types';
 import { TokenStoreService } from '@modules/security/token-store.service';
 import { LockoutService } from '@modules/security/lockout.service';
-import { TotpService } from './totp.service';
-import type { LoginDto } from './dto/login.dto';
+import { TotpService } from '@modules/auth/totp.service';
+import type { LoginDto } from '@modules/auth/dto/login.dto';
 
 export interface AuthTokens {
   access_token: string;

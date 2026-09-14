@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { RateLimitService } from './rate-limit.service';
+import { RateLimitService } from '@modules/security/rate-limit.service';
 import type { RedisClient } from '@/redis/redis.provider';
 
 /** Минимальный мок ioredis — только методы, которые использует сервис. */

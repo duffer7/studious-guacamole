@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { LockoutService } from './lockout.service';
+import { LockoutService } from '@modules/security/lockout.service';
 import type { RedisClient } from '@/redis/redis.provider';
 
 function createRedisMock() {

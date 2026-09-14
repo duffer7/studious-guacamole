@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import { DB, type Database } from '@db/db.provider';
 import { users, type NewUserRow, type UserRow } from '@db/schema';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersRepository {
@@ -20,7 +21,12 @@ export class UsersRepository {
   }
 
   async insert(input: NewUserRow): Promise<UserRow> {
-    const [created] = await this.db.insert(users).values(input).returning();
+    const hashedPassword = await bcrypt.hash(input.password, 10);
+    const [created] = await this.db
+      .insert(users)
+      .values({ ...input, password: hashedPassword })
+      .returning();
+
     return created;
   }
 

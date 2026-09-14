@@ -11,10 +11,10 @@ import {
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@modules/security/jwt-auth.guard';
 import type { AuthUser } from '@modules/security/types';
-import { AuthService, type LoginResult } from './auth.service';
-import { LoginDto } from './dto/login.dto';
-import { MfaDto } from './dto/mfa.dto';
-import { RefreshDto } from './dto/refresh.dto';
+import { AuthService, type LoginResult } from '@modules/auth/auth.service';
+import { LoginDto } from '@modules/auth/dto/login.dto';
+import { MfaDto } from '@modules/auth/dto/mfa.dto';
+import { RefreshDto } from '@modules/auth/dto/refresh.dto';
 import { RateLimit } from '@modules/security/rate-limit.decorator';
 import { RateLimitInterceptor } from '@modules/security/rate-limit.interceptor';
 
