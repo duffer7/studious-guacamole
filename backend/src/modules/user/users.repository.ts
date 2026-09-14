@@ -19,13 +19,6 @@ export class UsersRepository {
     });
   }
 
-  async findAllPublic(): Promise<Omit<UserRow, 'password'>[]> {
-    return this.db.query.users.findMany({
-      columns: { password: false },
-      orderBy: (users, { asc }) => [asc(users.id)],
-    });
-  }
-
   async insert(input: NewUserRow): Promise<UserRow> {
     const [created] = await this.db.insert(users).values(input).returning();
     return created;

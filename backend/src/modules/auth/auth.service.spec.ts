@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { HttpException, UnauthorizedException } from '@nestjs/common';
 
-// bcrypt мокаем целиком: пароль считаем верным, кроме 'wrong-password'.
 vi.mock('bcrypt', () => ({
   compare: vi.fn(async (_plain: string) => _plain !== 'wrong-password'),
   hash: vi.fn(async () => 'hashed'),
@@ -16,10 +15,6 @@ import type { TokenStoreService } from '@modules/security/token-store.service';
 import type { LockoutService } from '@modules/security/lockout.service';
 import type { JwtPayload } from '@modules/security/types';
 
-/**
- * Фейк JwtService: sign кодирует payload в "token" (JSON), decode его читает.
- * Это позволяет честно прогонять expOf/jtiOf без реальной криптографии.
- */
 function createJwtMock() {
   const ttlSeconds: Record<string, number> = { '15m': 900, '7d': 604800 };
   return {
@@ -136,7 +131,7 @@ describe('AuthService', () => {
       expect(lockout.recordFailure).not.toHaveBeenCalled();
     });
 
-    it('при неверном MFA-коде фиксирует неудачу и кидает 401', async () => {
+    it('при неверном MFA-коде фиксирует неудачу и возвращает 401', async () => {
       users.findByUsername.mockResolvedValue({ ...activeUser, mfaEnabled: true, mfaSecret: 'S' });
       totp.verify.mockReturnValue(false);
 
