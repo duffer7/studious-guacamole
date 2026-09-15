@@ -16,6 +16,8 @@ async function bootstrap() {
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
   );
 
+  app.enableCors();
+
   const config = new DocumentBuilder()
     .setTitle('Messenger API')
     .setDescription('API документация для мессенджера')

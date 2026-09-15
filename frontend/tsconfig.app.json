@@ -10,11 +10,17 @@
     "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
-      "@components/*": ["components/*"],
-      "@ui/*": ["components/ui/*"],
-      "@lib/*": ["components/lib/*"],
-      "@hooks/*": ["components/hooks/*"],
-      "@utils/*": ["components/lib/utils/*"]
+      // shadcn
+      "@components/*": ["./src/components/*"],
+      "@ui/*": ["./src/components/ui/*"],
+      "@lib/*": ["./src/components/lib/*"],
+      "@hooks/*": ["./src/components/hooks/*"],
+      "@utils/*": ["./src/components/lib/utils/*"],
+
+      // General
+      "@/*": ["./src/*"],
+      "@assets/*": ["./src/assets/*"],
+      "@pages/*": ["./src/pages/*"]
     },
 
     /* Bundler mode */

@@ -64,7 +64,6 @@ export class AuthService {
     return { token, exp: this.expOf(token) };
   }
 
-  /** Выпуск пары токенов. `sid` можно передать (ротация), иначе создаётся новая сессия. */
   private async issueTokens(
     base: { sub: number; username: string },
     sid: string = randomUUID(),
@@ -78,9 +77,7 @@ export class AuthService {
       AuthService.REFRESH_TOKEN_TTL,
     );
 
-    // Регистрируем refresh как текущий живой для сессии (для ротации/reuse detection).
     await this.tokenStore.registerRefresh(sid, this.jtiOf(refresh.token), refresh.exp);
-    // Запоминаем сессию за пользователем (для «выйти со всех устройств»).
     await this.tokenStore.addUserSession(base.sub, sid);
 
     return { access_token: access.token, refresh_token: refresh.token };
@@ -90,7 +87,6 @@ export class AuthService {
     return (this.jwt.decode(token) as JwtPayload).jti;
   }
   async login(dto: LoginDto): Promise<LoginResult> {
-    // 1) Проверка блокировки аккаунта (прогрессивный lockout).
     const lockedFor = await this.lockout.isLocked(dto.username);
     if (lockedFor > 0) {
       throw new HttpException(
@@ -99,8 +95,6 @@ export class AuthService {
       );
     }
 
-    // 2) Проверка пароля. Даже если пользователя нет — сравниваем с заглушкой,
-    //    чтобы время ответа не выдавало существование логина.
     const user = await this.users.findByUsername(dto.username);
     const passwordValid = await bcrypt.compare(
       dto.password,
@@ -111,8 +105,6 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // 3) MFA: если включён, но код не передан — не раскрываем статус 401-й ошибкой,
-    //    а возвращаем явный флаг. Пароль уже подтверждён на этом шаге.
     if (user.mfaEnabled) {
       if (!dto.code) {
         return { mfaRequired: true };
