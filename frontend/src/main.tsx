@@ -6,6 +6,8 @@ import { RouterProvider, createRouter } from '@tanstack/react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { routeTree } from '@/routeTree.gen';
 import { store } from '@/store';
+import { setOnUnauthorized, setTokens } from '@/api/client';
+import { bootstrapAuth } from '@/features/auth/auth.slice';
 
 const queryClient = new QueryClient();
 
@@ -24,6 +26,13 @@ declare module '@tanstack/react-router' {
     router: typeof router;
   }
 }
+
+setOnUnauthorized(() => {
+  setTokens({ accessToken: null, refreshToken: null });
+  store.dispatch({ type: 'auth/logout' });
+});
+
+await store.dispatch(bootstrapAuth());
 
 const rootElement = document.getElementById('app')!;
 

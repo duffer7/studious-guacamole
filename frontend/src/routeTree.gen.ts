@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as AuthedChatsRouteImport } from './routes/_authed/chats'
+import { Route as AuthedMeRouteImport } from './routes/_authed/me'
 import { Route as AuthedSettingsRouteImport } from './routes/_authed/settings'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 
@@ -29,6 +30,11 @@ const AuthedChatsRoute = AuthedChatsRouteImport.update({
   path: '/chats',
   getParentRoute: () => AuthedRoute,
 } as any)
+const AuthedMeRoute = AuthedMeRouteImport.update({
+  id: '/me',
+  path: '/me',
+  getParentRoute: () => AuthedRoute,
+} as any)
 const AuthedSettingsRoute = AuthedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -43,12 +49,14 @@ const AuthLoginRoute = AuthLoginRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/chats': typeof AuthedChatsRoute
+  '/me': typeof AuthedMeRoute
   '/settings': typeof AuthedSettingsRoute
   '/auth/login': typeof AuthLoginRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/chats': typeof AuthedChatsRoute
+  '/me': typeof AuthedMeRoute
   '/settings': typeof AuthedSettingsRoute
   '/auth/login': typeof AuthLoginRoute
 }
@@ -57,19 +65,21 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authed': typeof AuthedRouteWithChildren
   '/_authed/chats': typeof AuthedChatsRoute
+  '/_authed/me': typeof AuthedMeRoute
   '/_authed/settings': typeof AuthedSettingsRoute
   '/auth/login': typeof AuthLoginRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/chats' | '/settings' | '/auth/login'
+  fullPaths: '/' | '/chats' | '/me' | '/settings' | '/auth/login'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/chats' | '/settings' | '/auth/login'
+  to: '/' | '/chats' | '/me' | '/settings' | '/auth/login'
   id:
     | '__root__'
     | '/'
     | '/_authed'
     | '/_authed/chats'
+    | '/_authed/me'
     | '/_authed/settings'
     | '/auth/login'
   fileRoutesById: FileRoutesById
@@ -103,6 +113,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedChatsRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/me': {
+      id: '/_authed/me'
+      path: '/me'
+      fullPath: '/me'
+      preLoaderRoute: typeof AuthedMeRouteImport
+      parentRoute: typeof AuthedRoute
+    }
     '/_authed/settings': {
       id: '/_authed/settings'
       path: '/settings'
@@ -122,11 +139,13 @@ declare module '@tanstack/react-router' {
 
 interface AuthedRouteChildren {
   AuthedChatsRoute: typeof AuthedChatsRoute
+  AuthedMeRoute: typeof AuthedMeRoute
   AuthedSettingsRoute: typeof AuthedSettingsRoute
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedChatsRoute: AuthedChatsRoute,
+  AuthedMeRoute: AuthedMeRoute,
   AuthedSettingsRoute: AuthedSettingsRoute,
 }
 

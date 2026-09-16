@@ -72,7 +72,7 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
                   </Field>
                   <Field>
                     <Button type="submit" variant="default" disabled={isPending}>
-                      {isPending ? 'Отправка…' : 'Войти'}
+                      {isPending ? 'Sending...' : 'Login'}
                     </Button>
                   </Field>
                   <FieldDescription className="text-center">
@@ -92,9 +92,7 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
         </>
       ) : (
         <form onSubmit={handleSubmit}>
-          <p className="text-sm text-muted-foreground">
-            Введите код из приложения-аутентификатора.
-          </p>
+          <p className="text-sm text-muted-foreground">Enter one-time code from an app.</p>
           <label className="block">
             <span className="mb-1 block text-sm font-medium text-foreground">
               Код подтверждения
@@ -116,7 +114,7 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
               Назад
             </Button>
             <Button type="submit" className="flex-1" disabled={isPending}>
-              {isPending ? 'Отправка…' : 'Подтвердить'}
+              {isPending ? 'Sending...' : 'Confirm'}
             </Button>
           </div>
         </form>

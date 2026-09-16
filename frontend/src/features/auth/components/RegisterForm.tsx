@@ -3,9 +3,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 
-export function RegisterForm({ ...props }: React.ComponentProps<typeof Card>) {
+type RegisterFormProps = {
+  onSwitchToLogin: () => void;
+};
+
+export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
   return (
-    <Card {...props}>
+    <Card>
       <CardHeader>
         <CardTitle>Create an account</CardTitle>
         <CardDescription>Enter your information below to create your account</CardDescription>
@@ -37,11 +41,14 @@ export function RegisterForm({ ...props }: React.ComponentProps<typeof Card>) {
             <FieldGroup>
               <Field>
                 <Button type="submit">Create Account</Button>
-                <Button variant="outline" type="button">
+                {/* <Button variant="outline" type="button">
                   Sign up with Google
-                </Button>
+                </Button> */}
                 <FieldDescription className="px-6 text-center">
-                  Already have an account? <a href="#">Sign in</a>
+                  Already have an account?{' '}
+                  <a href="#" onClick={onSwitchToLogin}>
+                    Sign in
+                  </a>
                 </FieldDescription>
               </Field>
             </FieldGroup>

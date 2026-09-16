@@ -2,6 +2,9 @@ import { Outlet, createRootRouteWithContext } from '@tanstack/react-router';
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import type { QueryClient } from '@tanstack/react-query';
+import { Navbar } from '@components/Navbar';
+import { selectIsAuthenticated } from '@/features/auth/auth.slice';
+import { useAppSelector } from '@/store/hooks';
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;
@@ -17,8 +20,10 @@ export const Route = createRootRouteWithContext<{
 });
 
 function RootComponent() {
+  const isAuthenticated = useAppSelector(selectIsAuthenticated);
   return (
     <>
+      {isAuthenticated ? <Navbar></Navbar> : ''}
       <Outlet />
       <ReactQueryDevtools buttonPosition="top-right" />
       <TanStackRouterDevtools position="bottom-right" />

@@ -1,7 +1,9 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL;
+const ACCESS_TOKEN_KEY = 'auth.accessToken';
+const REFRESH_TOKEN_KEY = 'auth.refreshToken';
 
-let accessToken: string | null = null;
-let refreshToken: string | null = null;
+let accessToken: string | null = localStorage.getItem(ACCESS_TOKEN_KEY);
+let refreshToken: string | null = localStorage.getItem(REFRESH_TOKEN_KEY);
 
 /** Колбэк, вызываемый, когда refresh не удался (сессия окончательно истекла). */
 let onUnauthorized: (() => void) | null = null;
@@ -12,10 +14,26 @@ export function setTokens(tokens: {
 }): void {
   accessToken = tokens.accessToken;
   refreshToken = tokens.refreshToken;
+
+  if (accessToken) {
+    localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+  } else {
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+  }
+
+  if (refreshToken) {
+    localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+  } else {
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+  }
 }
 
 export function getAccessToken(): string | null {
   return accessToken;
+}
+
+export function getRefreshToken(): string | null {
+  return refreshToken;
 }
 
 export function setOnUnauthorized(cb: (() => void) | null): void {

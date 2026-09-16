@@ -1,5 +1,8 @@
-import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import { createAsyncThunk, createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type { User } from '@/features/auth/types';
+import { getAccessToken, getRefreshToken } from '@/api/client';
+import { getMe } from '@/features/auth/api';
+import type { RootState } from '@/store';
 
 interface AuthState {
   user: User | null;
@@ -31,6 +34,21 @@ const authSlice = createSlice({
     },
     logout: () => initialState,
   },
+});
+
+export const selectUser = (state: RootState) => state.auth.user;
+export const selectIsAuthenticated = (state: RootState) => state.auth.status === 'authenticated';
+
+export const bootstrapAuth = createAsyncThunk('auth/bootstrap', async (_, { dispatch }) => {
+  const accessToken = getAccessToken();
+  const refreshToken = getRefreshToken();
+  if (!accessToken || !refreshToken) {
+    return;
+  }
+
+  const user = await getMe();
+  dispatch(setUser(user));
+  dispatch(setCredentials({ accessToken, refreshToken }));
 });
 
 export const { setCredentials, setUser, logout } = authSlice.actions;
