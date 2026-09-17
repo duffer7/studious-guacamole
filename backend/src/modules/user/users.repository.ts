@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { eq, or } from 'drizzle-orm';
 import { DB, type Database } from '@db/db.provider';
 import { users, type NewUserRow, type UserRow } from '@db/schema';
 import * as bcrypt from 'bcrypt';
@@ -17,6 +17,15 @@ export class UsersRepository {
   findByUsername(username: string): Promise<UserRow | undefined> {
     return this.db.query.users.findFirst({
       where: eq(users.username, username),
+    });
+  }
+
+  findByUsernameOrEmail(username?: string, email?: string): Promise<UserRow | undefined> {
+    return this.db.query.users.findFirst({
+      where: or(
+        username ? eq(users.username, username) : undefined,
+        email ? eq(users.email, email) : undefined,
+      ),
     });
   }
 

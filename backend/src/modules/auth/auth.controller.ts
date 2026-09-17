@@ -17,6 +17,8 @@ import { MfaDto } from '@modules/auth/dto/mfa.dto';
 import { RefreshDto } from '@modules/auth/dto/refresh.dto';
 import { RateLimit } from '@modules/security/rate-limit.decorator';
 import { RateLimitInterceptor } from '@modules/security/rate-limit.interceptor';
+import { RegisterDto } from '@modules/auth/dto/register.dto';
+import { UserRow } from '@db/schema';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -33,6 +35,18 @@ export class AuthController {
   })
   async login(@Body() dto: LoginDto): Promise<LoginResult> {
     return this.authService.login(dto);
+  }
+
+  @Post('register')
+  @RateLimit({ bucket: 'register', limit: 5, window: 60 })
+  @UseInterceptors(RateLimitInterceptor)
+  @ApiOperation({ summary: 'Регистрация нового пользователя' })
+  @ApiResponse({
+    status: 201,
+    description: 'Успешная регистрация пользователя',
+  })
+  async register(@Body() dto: RegisterDto): Promise<UserRow> {
+    return this.authService.register(dto);
   }
 
   @Post('refresh')

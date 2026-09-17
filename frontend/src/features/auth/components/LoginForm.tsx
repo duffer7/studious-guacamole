@@ -5,12 +5,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@components/ui/input';
 import { cn } from 'cn';
+import { Link } from '@tanstack/react-router';
 
-type LoginFormProps = {
-  onSwitchToRegister: () => void;
-};
-
-export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
+export function LoginForm() {
   const { step, submitCredentials, submitMfa, backToCredentials, isPending, error } = useLogin();
 
   const [username, setUsername] = useState('');
@@ -30,16 +27,14 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
   return (
     <>
       {step === 'credentials' ? (
-        <>
+        <div className="p-6">
           <Card className="overflow-hidden p-0">
             <CardContent className="grid p-0">
               <form className="p-6" onSubmit={handleSubmit}>
                 <FieldGroup>
                   <div className="flex flex-col items-center gap-2 text-center">
                     <h1 className="text-2xl font-bold">Welcome back</h1>
-                    <p className="text-balance text-muted-foreground">
-                      Login to your Acme Inc account
-                    </p>
+                    <p className="text-balance text-muted-foreground">Log in to your account</p>
                   </div>
                   <Field>
                     <FieldLabel htmlFor="email">Username</FieldLabel>
@@ -76,20 +71,13 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
                     </Button>
                   </Field>
                   <FieldDescription className="text-center">
-                    Don&apos;t have an account?{' '}
-                    <a href="#" onClick={onSwitchToRegister}>
-                      Sign up
-                    </a>
+                    Don&apos;t have an account? <Link to="/auth/register">Register</Link>
                   </FieldDescription>
                 </FieldGroup>
               </form>
             </CardContent>
           </Card>
-          <FieldDescription className="px-6 pt-6 text-center">
-            By clicking continue, you agree to our <a href="#">Terms of Service</a> and{' '}
-            <a href="#">Privacy Policy</a>.
-          </FieldDescription>
-        </>
+        </div>
       ) : (
         <form onSubmit={handleSubmit}>
           <p className="text-sm text-muted-foreground">Enter one-time code from an app.</p>

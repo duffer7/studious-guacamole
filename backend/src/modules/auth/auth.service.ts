@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -14,6 +15,8 @@ import { TokenStoreService } from '@modules/security/token-store.service';
 import { LockoutService } from '@modules/security/lockout.service';
 import { TotpService } from '@modules/auth/totp.service';
 import type { LoginDto } from '@modules/auth/dto/login.dto';
+import { RegisterDto } from '@modules/auth/dto/register.dto';
+import { UserRow } from '@db/schema';
 
 export interface AuthTokens {
   access_token: string;
@@ -43,16 +46,15 @@ export class AuthService {
     '$2b$10$CwTycUXWue0Thq9StjUM0uJ8.B7E0hXk8p0Xm3wJm6g9Q0o5fQmK';
 
   constructor(
-    private readonly jwt: JwtService,
-    private readonly totp: TotpService,
-    private readonly users: UsersService,
-    private readonly tokenStore: TokenStoreService,
-    private readonly lockout: LockoutService,
+    private readonly jwtService: JwtService,
+    private readonly totpService: TotpService,
+    private readonly usersService: UsersService,
+    private readonly tokenStoreService: TokenStoreService,
+    private readonly lockoutService: LockoutService,
   ) {}
 
-  /** Декодированный exp (unix-секунды) подписанного токена — нужен для TTL. */
   private expOf(token: string): number {
-    const decoded = this.jwt.decode(token) as { exp: number };
+    const decoded = this.jwtService.decode(token) as { exp: number };
     return decoded.exp;
   }
 
@@ -60,7 +62,7 @@ export class AuthService {
     payload: JwtPayload,
     expiresIn: number | `${number}${'s' | 'm' | 'h' | 'd'}`,
   ): { token: string; exp: number } {
-    const token = this.jwt.sign(payload, { expiresIn });
+    const token = this.jwtService.sign(payload, { expiresIn });
     return { token, exp: this.expOf(token) };
   }
 
@@ -77,17 +79,18 @@ export class AuthService {
       AuthService.REFRESH_TOKEN_TTL,
     );
 
-    await this.tokenStore.registerRefresh(sid, this.jtiOf(refresh.token), refresh.exp);
-    await this.tokenStore.addUserSession(base.sub, sid);
+    await this.tokenStoreService.registerRefresh(sid, this.jtiOf(refresh.token), refresh.exp);
+    await this.tokenStoreService.addUserSession(base.sub, sid);
 
     return { access_token: access.token, refresh_token: refresh.token };
   }
 
   private jtiOf(token: string): string {
-    return (this.jwt.decode(token) as JwtPayload).jti;
+    return (this.jwtService.decode(token) as JwtPayload).jti;
   }
+
   async login(dto: LoginDto): Promise<LoginResult> {
-    const lockedFor = await this.lockout.isLocked(dto.username);
+    const lockedFor = await this.lockoutService.isLocked(dto.username);
     if (lockedFor > 0) {
       throw new HttpException(
         { message: 'Account temporarily locked', retryAfter: lockedFor },
@@ -95,13 +98,13 @@ export class AuthService {
       );
     }
 
-    const user = await this.users.findByUsername(dto.username);
+    const user = await this.usersService.findByUsername(dto.username);
     const passwordValid = await bcrypt.compare(
       dto.password,
       user?.password ?? AuthService.DUMMY_HASH,
     );
     if (!user || !passwordValid) {
-      await this.lockout.recordFailure(dto.username);
+      await this.lockoutService.recordFailure(dto.username);
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -109,20 +112,34 @@ export class AuthService {
       if (!dto.code) {
         return { mfaRequired: true };
       }
-      if (!user.mfaSecret || !this.totp.verify(user.mfaSecret, dto.code)) {
-        await this.lockout.recordFailure(dto.username);
+      if (!user.mfaSecret || !this.totpService.verify(user.mfaSecret, dto.code)) {
+        await this.lockoutService.recordFailure(dto.username);
         throw new UnauthorizedException('Invalid credentials');
       }
     }
 
-    await this.lockout.reset(dto.username);
+    await this.lockoutService.reset(dto.username);
     return this.issueTokens({ sub: user.id, username: user.username });
+  }
+
+  async register(dto: RegisterDto): Promise<UserRow> {
+    const existedUser = await this.usersService.findByUsernameOrEmail(dto.username, dto.email);
+    if (existedUser) {
+      const field = existedUser.username === dto.username ? 'username' : 'email';
+      throw new ConflictException({
+        message: `${dto[field]} is already in use`,
+        field,
+      });
+    }
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+
+    return this.usersService.create({ ...dto, password: hashedPassword });
   }
 
   async refresh(refreshToken: string): Promise<AuthTokens> {
     let payload: JwtPayload;
     try {
-      payload = await this.jwt.verifyAsync<JwtPayload>(refreshToken);
+      payload = await this.jwtService.verifyAsync<JwtPayload>(refreshToken);
     } catch {
       throw new UnauthorizedException('Invalid refresh token');
     }
@@ -130,21 +147,21 @@ export class AuthService {
     if (payload.typ !== 'refresh') {
       throw new UnauthorizedException('Invalid refresh token');
     }
-    if (await this.tokenStore.isRevoked(payload.jti, payload.sid)) {
+    if (await this.tokenStoreService.isRevoked(payload.jti, payload.sid)) {
       throw new UnauthorizedException('Session revoked');
     }
 
     // Сначала убеждаемся, что пользователь ещё существует, и только потом
     // сжигаем refresh — иначе при удалённом пользователе сожгли бы валидный токен.
-    const user = await this.users.findById(payload.sub);
+    const user = await this.usersService.findById(payload.sub);
     if (!user) {
       throw new UnauthorizedException('User no longer exists');
     }
 
-    const consumed = await this.tokenStore.consumeRefresh(payload.sid, payload.jti);
+    const consumed = await this.tokenStoreService.consumeRefresh(payload.sid, payload.jti);
     if (consumed === 'reused') {
       // Признак кражи: старый refresh снова в деле → рвём всю сессию.
-      await this.tokenStore.revokeSession(payload.sid, this.expOf(refreshToken));
+      await this.tokenStoreService.revokeSession(payload.sid, this.expOf(refreshToken));
       throw new UnauthorizedException('Refresh token reuse detected');
     }
     if (consumed === 'unknown') {
@@ -156,7 +173,7 @@ export class AuthService {
   }
 
   async enableMfa(authUser: AuthUser) {
-    const user = await this.users.findById(authUser.userId);
+    const user = await this.usersService.findById(authUser.userId);
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
@@ -164,48 +181,48 @@ export class AuthService {
       throw new BadRequestException('MFA is already enabled');
     }
 
-    const secret = this.totp.generateSecret();
-    await this.users.setMfa(user.id, false, secret);
+    const secret = this.totpService.generateSecret();
+    await this.usersService.setMfa(user.id, false, secret);
 
     return {
       secret,
-      otpauthUrl: this.totp.generateQRCode(secret, user.username),
+      otpauthUrl: this.totpService.generateQRCode(secret, user.username),
     };
   }
 
   async verifyMfa(authUser: AuthUser, code: string) {
-    const user = await this.users.findById(authUser.userId);
+    const user = await this.usersService.findById(authUser.userId);
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
     if (!user.mfaSecret) {
       throw new BadRequestException('MFA is not initialized. Call /auth/mfa/enable first');
     }
-    if (!this.totp.verify(user.mfaSecret, code)) {
+    if (!this.totpService.verify(user.mfaSecret, code)) {
       throw new UnauthorizedException('Invalid MFA code');
     }
 
-    await this.users.setMfa(user.id, true, user.mfaSecret);
+    await this.usersService.setMfa(user.id, true, user.mfaSecret);
     // Состояние MFA изменилось — отзываем все прошлые сессии.
-    await this.tokenStore.revokeAllUserSessions(user.id);
+    await this.tokenStoreService.revokeAllUserSessions(user.id);
     return { mfaEnabled: true };
   }
 
   async disableMfa(authUser: AuthUser, code: string) {
-    const user = await this.users.findById(authUser.userId);
+    const user = await this.usersService.findById(authUser.userId);
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
     if (!user.mfaEnabled) {
       throw new BadRequestException('MFA is not enabled');
     }
-    if (!user.mfaSecret || !this.totp.verify(user.mfaSecret, code)) {
+    if (!user.mfaSecret || !this.totpService.verify(user.mfaSecret, code)) {
       throw new UnauthorizedException('Invalid MFA code');
     }
 
-    await this.users.setMfa(user.id, false, null);
+    await this.usersService.setMfa(user.id, false, null);
     // Состояние MFA изменилось — отзываем все прошлые сессии.
-    await this.tokenStore.revokeAllUserSessions(user.id);
+    await this.tokenStoreService.revokeAllUserSessions(user.id);
     return { mfaEnabled: false };
   }
 
@@ -213,11 +230,11 @@ export class AuthService {
     // Отзываем всю сессию: и access, и refresh, привязанные к этому sid.
     // TTL берём по refresh (7d), т.к. refresh живёт дольше access.
     const refreshExp = Math.floor(Date.now() / 1000) + AuthService.REFRESH_TTL_SECONDS;
-    await this.tokenStore.revokeSession(authUser.sid, refreshExp);
+    await this.tokenStoreService.revokeSession(authUser.sid, refreshExp);
   }
 
   /** Выход со всех устройств — отзываем все активные сессии пользователя. */
   async logoutAll(authUser: AuthUser): Promise<void> {
-    await this.tokenStore.revokeAllUserSessions(authUser.userId);
+    await this.tokenStoreService.revokeAllUserSessions(authUser.userId);
   }
 }

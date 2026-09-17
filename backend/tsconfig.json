@@ -18,9 +18,10 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": "./",
     "paths": {
-      "@/*": ["./src/*"],
       "@modules/*": ["./src/modules/*"],
-      "@db/*": ["./src/db/*"]
+      "@db/*": ["./src/db/*"],
+      "@common/*": ["./src/common/*"],
+      "@/*": ["./src/*"]
     },
     "types": ["vitest/globals", "node"]
   },

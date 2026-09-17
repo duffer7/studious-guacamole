@@ -13,6 +13,10 @@ export class UsersService {
     return this.repo.findByUsername(username);
   }
 
+  findByUsernameOrEmail(username: string, email: string): Promise<UserRow | undefined> {
+    return this.repo.findByUsernameOrEmail(username, email);
+  }
+
   setMfa(userId: number, mfaEnabled: boolean, mfaSecret: string | null): Promise<UserRow> {
     return this.repo.updateMfa(userId, mfaEnabled, mfaSecret);
   }
