@@ -11,7 +11,7 @@ export class ResponseUserDto {
   username: string;
 
   @ApiProperty({ example: 'user@example.com' })
-  email: string;
+  email: string | null;
 
   @ApiProperty({ example: 'Артемий', nullable: true })
   displayName: string | null;

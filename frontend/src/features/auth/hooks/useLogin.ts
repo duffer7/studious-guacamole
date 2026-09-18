@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useAppDispatch } from '@/store/hooks';
-import { setCredentials } from '@/features/auth/auth.slice';
+import { setCredentials } from '@features/auth/auth.slice';
 import { setTokens } from '@/api/client';
-import { login } from '@/features/auth/api';
-import type { LoginDto, LoginResult, MfaRequired } from '@/features/auth/types';
+import { login } from '@features/auth/api';
+import type { LoginDto, LoginResult, MfaRequired } from '@features/auth/types';
+import { useNavigate } from '@tanstack/react-router';
 
 export type LoginStep = 'credentials' | 'mfa';
 
@@ -14,6 +15,7 @@ function isMfaRequired(result: LoginResult): result is MfaRequired {
 
 export function useLogin() {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const [step, setStep] = useState<LoginStep>('credentials');
   const [pending, setPending] = useState<{ username: string; password: string } | null>(null);
 
@@ -38,6 +40,8 @@ export function useLogin() {
       );
       setStep('credentials');
       setPending(null);
+
+      navigate({ to: '/chats' });
     },
   });
 
@@ -63,5 +67,6 @@ export function useLogin() {
     backToCredentials,
     isPending: mutation.isPending,
     error: mutation.error,
+    reset: mutation.reset,
   };
 }

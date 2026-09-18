@@ -3,11 +3,12 @@ import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import type { QueryClient } from '@tanstack/react-query';
 import { Navbar } from '@components/Navbar';
-import { selectIsAuthenticated } from '@/features/auth/auth.slice';
+import { selectIsAuthenticated } from '@features/auth/auth.slice';
 import { useAppSelector } from '@/store/hooks';
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;
+  authIsReady: Promise<unknown>;
 }>()({
   component: RootComponent,
   notFoundComponent: () => {

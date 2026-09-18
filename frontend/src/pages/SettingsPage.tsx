@@ -1,23 +1,18 @@
-import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { logout } from '@/features/auth/auth.slice';
-import { setTokens } from '@/api/client';
+import { useAppSelector } from '@/store/hooks';
+import { useLogout } from '@features/auth/hooks/useLogout';
 import { Button } from '@ui/button';
 import { Link } from '@tanstack/react-router';
 import { Field, FieldGroup } from '@components/ui/field';
 
-/** Настройки профиля + выход. Здесь же появится управление MFA. */
 export function SettingsPage() {
   const user = useAppSelector((s) => s.auth.user);
-  const dispatch = useAppDispatch();
-
+  const { logout, logoutAll } = useLogout();
   function handleLogout() {
-    setTokens({ accessToken: null, refreshToken: null });
-    dispatch(logout());
+    void logout();
   }
 
   function handleLogoutAllDevices() {
-    setTokens({ accessToken: null, refreshToken: null });
-    dispatch(logout());
+    void logoutAll();
   }
 
   return (

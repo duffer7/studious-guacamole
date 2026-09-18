@@ -26,10 +26,10 @@ export interface MfaRequired {
 
 export type LoginResult = AuthTokens | MfaRequired;
 
-export type RegisterUser = {
-  avatarUrl: string | null;
-  displayName: string | null;
-  email: string;
+export type RegisterDto = {
+  avatarUrl?: string;
+  displayName?: string;
+  email?: string;
   username: string;
   password: string;
 };

@@ -123,7 +123,7 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto): Promise<UserRow> {
-    const existedUser = await this.usersService.findByUsernameOrEmail(dto.username, dto.email);
+    const existedUser = await this.usersService.findByUsername(dto.username);
     if (existedUser) {
       const field = existedUser.username === dto.username ? 'username' : 'email';
       throw new ConflictException({

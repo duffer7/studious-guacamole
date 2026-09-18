@@ -1,18 +1,22 @@
 import { useState, type SubmitEvent } from 'react';
 import { Button } from '@ui/button';
-import { useLogin } from '@/features/auth/hooks/useLogin';
+import { useLogin } from '@features/auth/hooks/useLogin';
 import { Card, CardContent } from '@/components/ui/card';
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@components/ui/input';
 import { cn } from 'cn';
-import { Link } from '@tanstack/react-router';
+import { Link, useLocation } from '@tanstack/react-router';
+import { Item, ItemContent, ItemTitle } from '@components/ui/item';
 
 export function LoginForm() {
+  const { state } = useLocation();
   const { step, submitCredentials, submitMfa, backToCredentials, isPending, error } = useLogin();
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
+
+  const message = (state as { message?: string }).message;
 
   function handleSubmit(e: SubmitEvent) {
     e.preventDefault();
@@ -32,6 +36,17 @@ export function LoginForm() {
             <CardContent className="grid p-0">
               <form className="p-6" onSubmit={handleSubmit}>
                 <FieldGroup>
+                  {message && (
+                    <Item
+                      variant="outline"
+                      className="bg-success-muted text-success-muted-foreground"
+                      render={
+                        <ItemContent>
+                          <ItemTitle>{message}</ItemTitle>
+                        </ItemContent>
+                      }
+                    />
+                  )}
                   <div className="flex flex-col items-center gap-2 text-center">
                     <h1 className="text-2xl font-bold">Welcome back</h1>
                     <p className="text-balance text-muted-foreground">Log in to your account</p>
@@ -66,6 +81,8 @@ export function LoginForm() {
                     />
                   </Field>
                   <Field>
+                    {error ? <p className="text-sm text-destructive">{error.message}</p> : null}
+
                     <Button type="submit" variant="default" disabled={isPending}>
                       {isPending ? 'Sending...' : 'Login'}
                     </Button>
@@ -107,8 +124,6 @@ export function LoginForm() {
           </div>
         </form>
       )}
-
-      {error ? <p className="text-sm text-destructive">{describeError(error)}</p> : null}
     </>
   );
 }

@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Item,
@@ -53,29 +54,29 @@ export function ChatsPage() {
         </CardHeader>
         <CardContent>
           <ItemGroup className="flex w-full flex-col gap-0">
-            {chats.map((chat) => (
-              <Item
-                render={
-                  <a href="#">
-                    <ItemMedia>
-                      <Avatar className="size-10">
-                        <AvatarImage src={chat.avatarUrl} />
-                        <AvatarFallback>{chat.initials}</AvatarFallback>
-                      </Avatar>
-                    </ItemMedia>
-                    <ItemContent>
-                      <ItemTitle>{chat.fullname}</ItemTitle>
-                      <ItemDescription>
-                        {chat.lastMessage}
-                        <ItemSeparator className="w-auto" />
-                      </ItemDescription>
-                    </ItemContent>
-                    <ItemActions>
-                      <ChevronRightIcon className="size-4" />
-                    </ItemActions>
-                  </a>
-                }
-              />
+            {chats.map((chat, index) => (
+              <Fragment key={index}>
+                {index > 0 && <ItemSeparator className="w-full shrink-0" />}
+                <Item
+                  render={
+                    <a href="#">
+                      <ItemMedia>
+                        <Avatar className="size-10">
+                          <AvatarImage src={chat.avatarUrl} />
+                          <AvatarFallback>{chat.initials}</AvatarFallback>
+                        </Avatar>
+                      </ItemMedia>
+                      <ItemContent>
+                        <ItemTitle>{chat.fullname}</ItemTitle>
+                        <ItemDescription>{chat.lastMessage}</ItemDescription>
+                      </ItemContent>
+                      <ItemActions>
+                        <ChevronRightIcon className="size-4" />
+                      </ItemActions>
+                    </a>
+                  }
+                />
+              </Fragment>
             ))}
           </ItemGroup>
         </CardContent>

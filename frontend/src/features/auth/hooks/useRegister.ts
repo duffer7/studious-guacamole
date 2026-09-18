@@ -1,61 +1,16 @@
-import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { useAppDispatch } from '@/store/hooks';
-import { setCredentials } from '@/features/auth/auth.slice';
-import { setTokens } from '@/api/client';
-import { login } from '@/features/auth/api';
-import type { LoginDto } from '@/features/auth/types';
+import { register } from '@features/auth/api';
+import type { RegisterDto } from '@features/auth/types';
 
-export function useLogin() {
-  const dispatch = useAppDispatch();
-  const [step, setStep] = useState<LoginStep>('credentials');
-  const [pending, setPending] = useState<{ username: string; password: string } | null>(null);
-
+export function useRegister() {
   const mutation = useMutation({
-    mutationFn: (dto: LoginDto) => login(dto),
-    onSuccess: (result, dto) => {
-      if (isMfaRequired(result)) {
-        setPending({ username: dto.username, password: dto.password });
-        setStep('mfa');
-        return;
-      }
-
-      setTokens({
-        accessToken: result.access_token,
-        refreshToken: result.refresh_token,
-      });
-      dispatch(
-        setCredentials({
-          accessToken: result.access_token,
-          refreshToken: result.refresh_token,
-        }),
-      );
-      setStep('credentials');
-      setPending(null);
-    },
+    mutationFn: (dto: RegisterDto) => register(dto),
   });
 
-  function submitCredentials(username: string, password: string) {
-    mutation.mutate({ username, password });
-  }
-
-  function submitMfa(code: string) {
-    if (!pending) return;
-    mutation.mutate({ ...pending, code });
-  }
-
-  function backToCredentials() {
-    setStep('credentials');
-    setPending(null);
-    mutation.reset();
-  }
-
   return {
-    step,
-    submitCredentials,
-    submitMfa,
-    backToCredentials,
+    submitRegister: mutation.mutate,
     isPending: mutation.isPending,
     error: mutation.error,
+    reset: mutation.reset,
   };
 }

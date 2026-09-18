@@ -32,3 +32,4 @@ backend/tsconfig.build.tsbuildinfo
 .DS_Store
 **/.DS_Store
 
+frontend/.tanstack/

@@ -5,15 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1789097102212,
-      "tag": "0000_faulty_roulette",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1789156478519,
-      "tag": "0001_square_shooting_star",
+      "when": 1789701640626,
+      "tag": "0000_friendly_terrax",
       "breakpoints": true
     }
   ]

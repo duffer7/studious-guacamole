@@ -20,7 +20,8 @@
       // General
       "@/*": ["./src/*"],
       "@assets/*": ["./src/assets/*"],
-      "@pages/*": ["./src/pages/*"]
+      "@pages/*": ["./src/pages/*"],
+      "@features/*": ["./src/features/*"]
     },
 
     /* Bundler mode */

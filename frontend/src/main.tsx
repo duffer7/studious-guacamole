@@ -7,14 +7,17 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { routeTree } from '@/routeTree.gen';
 import { store } from '@/store';
 import { setOnUnauthorized, setTokens } from '@/api/client';
-import { bootstrapAuth } from '@/features/auth/auth.slice';
+import { bootstrapAuth } from '@features/auth/auth.slice';
 
 const queryClient = new QueryClient();
+
+const authIsReady = store.dispatch(bootstrapAuth());
 
 const router = createRouter({
   routeTree,
   context: {
     queryClient,
+    authIsReady,
   },
   defaultPreload: 'intent',
   defaultPreloadStaleTime: 0,
@@ -30,10 +33,11 @@ declare module '@tanstack/react-router' {
 setOnUnauthorized(() => {
   setTokens({ accessToken: null, refreshToken: null });
   store.dispatch({ type: 'auth/logout' });
+  void router.invalidate();
 });
 
-await store.dispatch(bootstrapAuth());
-
+// Ждём восстановления сессии до первого рендера, чтобы не мигать экраном логина.
+await authIsReady;
 const rootElement = document.getElementById('app')!;
 
 if (!rootElement.innerHTML) {

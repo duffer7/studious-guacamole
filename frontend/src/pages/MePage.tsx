@@ -3,7 +3,7 @@ import { useAppSelector } from '@/store/hooks';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@ui/card';
 import { Separator } from '@ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@components/ui/avatar';
-import { selectUser } from '@/features/auth/auth.slice';
+import { selectUser } from '@features/auth/auth.slice';
 
 function formatDate(value: Date | string | null | undefined): string {
   if (!value) {

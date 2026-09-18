@@ -1,6 +1,5 @@
-import { Match } from '@common/decorators/match.decorator';
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class RegisterDto {
   @ApiProperty({ example: 'username', description: 'Имя пользователя' })
@@ -15,15 +14,13 @@ export class RegisterDto {
   @MaxLength(128)
   password!: string;
 
-  @ApiProperty({ example: 's3cr3t-password', description: 'Повтор пароля' })
-  @Match('password', { message: 'Passwords do not match' })
-  passwordConfirm!: string;
-
-  @ApiProperty({ example: 'me@example.com', description: 'Email пользователя' })
+  @ApiProperty({ example: 'me@example.com', description: 'Email пользователя', required: false })
+  @IsOptional()
   @IsEmail()
-  email!: string;
+  email?: string;
 
-  @ApiProperty({ example: 'Alice Daze', description: 'Имя пользователя' })
+  @ApiProperty({ example: 'Alice Daze', description: 'Имя пользователя', required: false })
+  @IsOptional()
   @IsString()
-  displayName!: string;
+  displayName?: string;
 }

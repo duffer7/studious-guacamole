@@ -1,4 +1,3 @@
-import * as React from 'react';
 import {
   NavigationMenu,
   NavigationMenuItem,
@@ -13,7 +12,7 @@ export function Navbar() {
     <div className="flex absolute inset-x-0 bottom-4 items-center justify-center">
       <NavigationMenu>
         <div className="w-10 flex-1"></div>
-        <NavigationMenuList className="w-max flex-1 shadow-xl rounded-xl">
+        <NavigationMenuList className="w-max flex-1 rounded-xl bg-background shadow-xl ring-1 ring-foreground/10">
           <NavigationMenuItem>
             <NavigationMenuLink
               className={navigationMenuTriggerStyle()}
