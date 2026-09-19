@@ -16,7 +16,6 @@
     "strict": true,
     "strictPropertyInitialization": false,
     "forceConsistentCasingInFileNames": true,
-    "baseUrl": "./",
     "paths": {
       "@modules/*": ["./src/modules/*"],
       "@db/*": ["./src/db/*"],
