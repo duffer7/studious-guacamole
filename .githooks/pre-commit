@@ -1,4 +1,4 @@
-менять#!/bin/sh
+#!/bin/sh
 #
 # Pre-commit hook: type-check the backend when backend sources change.
 #
