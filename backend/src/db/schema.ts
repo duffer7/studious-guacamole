@@ -137,7 +137,7 @@ export const messages = pgTable(
     body: text('body'),
     type: varchar('type', { length: 16 }).notNull().default('text'),
     replyToId: bigint('reply_to_id', { mode: 'number' }),
-    clientMessageId: uuid('client_msg_id').notNull(),
+    clientMessageId: uuid('client_message_id').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     editedAt: timestamp('edited_at', { withTimezone: true }),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),

@@ -5,9 +5,5 @@ import { Inject, Injectable } from '@nestjs/common';
 export class ChatsRepository {
   constructor(@Inject(DB) private readonly db: Database) {}
 
-  isMember(chatId: number, senderId: number): boolean {
-    return false;
-  }
-
-  findByClientId(senderId: number, clientMessageId: number) {}
+  // findByClientId(senderId: number, clientMessageId: number) {}
 }

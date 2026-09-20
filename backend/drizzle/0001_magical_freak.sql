@@ -25,7 +25,7 @@ CREATE TABLE "messages" (
 	"body" text,
 	"type" varchar(16) DEFAULT 'text' NOT NULL,
 	"reply_to_id" bigint,
-	"client_msg_id" uuid NOT NULL,
+	"client_message_id" uuid NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"edited_at" timestamp with time zone,
 	"deleted_at" timestamp with time zone
@@ -38,7 +38,7 @@ ALTER TABLE "messages" ADD CONSTRAINT "messages_chat_id_chats_id_fk" FOREIGN KEY
 ALTER TABLE "messages" ADD CONSTRAINT "messages_sender_id_user_id_fk" FOREIGN KEY ("sender_id") REFERENCES "public"."user"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "chat_members_pk" ON "chat_members" USING btree ("chat_id","user_id");--> statement-breakpoint
 CREATE INDEX "chat_members_user_idx" ON "chat_members" USING btree ("user_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "messages_client_id_uniq" ON "messages" USING btree ("sender_id","client_msg_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "messages_client_id_uniq" ON "messages" USING btree ("sender_id","client_message_id");--> statement-breakpoint
 CREATE INDEX "messages_chat_cursor_idx" ON "messages" USING btree ("chat_id","id");--> statement-breakpoint
 CREATE INDEX "users_id_idx" ON "user" USING btree ("id");--> statement-breakpoint
 CREATE INDEX "users_username_idx" ON "user" USING btree ("username");--> statement-breakpoint

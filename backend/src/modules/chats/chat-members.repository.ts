@@ -7,16 +7,18 @@ import { and, eq } from 'drizzle-orm';
 export class ChatMembersRepository {
   constructor(@Inject(DB) private readonly db: Database) {}
 
-  isMember(chatId: number, senderId: number): boolean {
-    return false;
-  }
-
-  findByUserId(userId: number): Promise<ChatMemberWithСhats | undefined> {
+  findByUserIdWithChats(userId: number): Promise<ChatMemberWithСhats | undefined> {
     return this.db.query.chatMembers.findFirst({
       where: eq(chatMembers.userId, userId),
       with: {
         chats: true,
       },
+    });
+  }
+
+  findByUserIdAndChatId(chatId: number, userId: number): Promise<ChatMemberRow | undefined> {
+    return this.db.query.chatMembers.findFirst({
+      where: and(eq(chatMembers.chatId, chatId), eq(chatMembers.userId, userId)),
     });
   }
 

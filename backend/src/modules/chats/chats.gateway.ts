@@ -13,7 +13,7 @@ import { TokenStoreService } from '@modules/security/token-store.service';
 import { PresenceService } from './presence.service';
 import { ChatsService } from './chats.service';
 import { JwtPayload } from '@modules/security/types';
-import { SendMessageDto } from './dto/send-message.dto';
+import { SendMessageDto } from './dto/request/send-message.dto';
 
 @WebSocketGateway({ cors: true, namespace: '/chat' })
 export class ChatsGateway implements OnGatewayConnection, OnGatewayDisconnect {

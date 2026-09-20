@@ -84,12 +84,8 @@
           "name": "chat_members_chat_id_chats_id_fk",
           "tableFrom": "chat_members",
           "tableTo": "chats",
-          "columnsFrom": [
-            "chat_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["chat_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -97,12 +93,8 @@
           "name": "chat_members_user_id_user_id_fk",
           "tableFrom": "chat_members",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -168,12 +160,8 @@
           "name": "chats_created_by_user_id_fk",
           "tableFrom": "chats",
           "tableTo": "user",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -183,9 +171,7 @@
         "chats_direct_key_unique": {
           "name": "chats_direct_key_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "direct_key"
-          ]
+          "columns": ["direct_key"]
         }
       },
       "policies": {},
@@ -289,12 +275,8 @@
           "name": "friends_requester_id_user_id_fk",
           "tableFrom": "friends",
           "tableTo": "user",
-          "columnsFrom": [
-            "requester_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["requester_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -302,12 +284,8 @@
           "name": "friends_addressee_id_user_id_fk",
           "tableFrom": "friends",
           "tableTo": "user",
-          "columnsFrom": [
-            "addressee_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["addressee_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -359,8 +337,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "client_msg_id": {
-          "name": "client_msg_id",
+        "client_message_id": {
+          "name": "client_message_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -396,7 +374,7 @@
               "nulls": "last"
             },
             {
-              "expression": "client_msg_id",
+              "expression": "client_message_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -434,12 +412,8 @@
           "name": "messages_chat_id_chats_id_fk",
           "tableFrom": "messages",
           "tableTo": "chats",
-          "columnsFrom": [
-            "chat_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["chat_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -447,12 +421,8 @@
           "name": "messages_sender_id_user_id_fk",
           "tableFrom": "messages",
           "tableTo": "user",
-          "columnsFrom": [
-            "sender_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["sender_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -599,16 +569,12 @@
         "user_email_unique": {
           "name": "user_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         },
         "user_username_unique": {
           "name": "user_username_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "username"
-          ]
+          "columns": ["username"]
         }
       },
       "policies": {},
@@ -620,21 +586,12 @@
     "public.chat_type": {
       "name": "chat_type",
       "schema": "public",
-      "values": [
-        "direct",
-        "group",
-        "channel"
-      ]
+      "values": ["direct", "group", "channel"]
     },
     "public.friendship_status": {
       "name": "friendship_status",
       "schema": "public",
-      "values": [
-        "pending",
-        "accepted",
-        "declined",
-        "blocked"
-      ]
+      "values": ["pending", "accepted", "declined", "blocked"]
     }
   },
   "schemas": {},

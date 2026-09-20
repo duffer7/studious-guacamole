@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsOptional, IsString } from 'class-validator';
+import { IsInt, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 
 export class SendMessageDto {
   @ApiProperty({ example: 1, description: 'Имя' })
@@ -8,10 +8,15 @@ export class SendMessageDto {
 
   @ApiProperty({ example: 'Text message', description: 'Сообщение' })
   @IsString()
+  @MinLength(1)
+  @MaxLength(4000)
   body!: string;
 
-  @ApiProperty({ example: '28r02832hh293f', description: 'ID сообщения с фронта' })
-  @IsString()
+  @ApiProperty({
+    example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    description: 'Сгенерированный клиентом ID для идемпотентности операции создания',
+  })
+  @IsUUID()
   clientMessageId!: string;
 
   @ApiProperty({ example: 1, description: 'ID сообщения для ответа', required: false })
