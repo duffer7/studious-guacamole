@@ -6,7 +6,6 @@ export interface JwtPayload {
   sid: string;
   jti: string;
   typ: TokenType;
-  /** Заполняется автоматически из `expiresIn`. Unix-секунды. */
   exp?: number;
 }
 

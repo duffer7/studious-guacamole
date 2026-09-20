@@ -96,6 +96,9 @@ export const chats = pgTable('chats', {
   lastMessageAt: timestamp('last_message_at', { withTimezone: true }),
 });
 
+export type ChatRow = typeof chats.$inferSelect;
+export type NewChatRow = typeof chats.$inferInsert;
+
 export const chatMembers = pgTable(
   'chat_members',
   {
@@ -114,6 +117,12 @@ export const chatMembers = pgTable(
     index('chat_members_user_idx').on(t.userId),
   ],
 );
+
+export type ChatMemberRow = typeof chatMembers.$inferSelect;
+export type NewChatMemberRow = typeof chatMembers.$inferInsert;
+export type ChatMemberWithСhats = ChatMemberRow & {
+  chats: ChatRow[];
+};
 
 export const messages = pgTable(
   'messages',
@@ -138,3 +147,6 @@ export const messages = pgTable(
     index('messages_chat_cursor_idx').on(t.chatId, t.id),
   ],
 );
+
+export type MessageRow = typeof messages.$inferSelect;
+export type NewMessageRow = typeof messages.$inferInsert;

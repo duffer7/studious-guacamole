@@ -4,24 +4,24 @@ import { UsersRepository } from '@modules/user/users.repository';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly repo: UsersRepository) {}
+  constructor(private readonly usersRepository: UsersRepository) {}
   findById(id: number): Promise<UserRow | undefined> {
-    return this.repo.findById(id);
+    return this.usersRepository.findById(id);
   }
 
   findByUsername(username: string): Promise<UserRow | undefined> {
-    return this.repo.findByUsername(username);
+    return this.usersRepository.findByUsername(username);
   }
 
   findByUsernameOrEmail(username: string, email: string): Promise<UserRow | undefined> {
-    return this.repo.findByUsernameOrEmail(username, email);
+    return this.usersRepository.findByUsernameOrEmail(username, email);
   }
 
   setMfa(userId: number, mfaEnabled: boolean, mfaSecret: string | null): Promise<UserRow> {
-    return this.repo.updateMfa(userId, mfaEnabled, mfaSecret);
+    return this.usersRepository.updateMfa(userId, mfaEnabled, mfaSecret);
   }
 
   create(input: NewUserRow): Promise<UserRow> {
-    return this.repo.insert(input);
+    return this.usersRepository.insert(input);
   }
 }

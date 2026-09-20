@@ -13,6 +13,7 @@ import { TokenStoreService } from '@modules/security/token-store.service';
 import { PresenceService } from './presence.service';
 import { ChatsService } from './chats.service';
 import { JwtPayload } from '@modules/security/types';
+import { SendMessageDto } from './dto/send-message.dto';
 
 @WebSocketGateway({ cors: true, namespace: '/chat' })
 export class ChatsGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -29,7 +30,9 @@ export class ChatsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     try {
       const token = client.handshake.auth?.token as string | undefined;
       const payload = await this.jwt.verifyAsync<JwtPayload>(token ?? '');
-      if (payload.typ !== 'access') throw new Error('bad token type');
+      if (payload.typ !== 'access') {
+        throw new Error('bad token type');
+      }
 
       if (await this.tokenStore.isRevoked(payload.jti, payload.sid)) {
         throw new Error('revoked');
@@ -41,9 +44,10 @@ export class ChatsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       await client.join(`user:${payload.sub}`);
       await client.join(`sid:${payload.sid}`);
 
-      // for (const convId of await this.chatsService.getConversationIds(payload.sub)) {
-      //   await client.join(`conv:${convId}`);
-      // }
+      const chatIds = (await this.chatsService.getChatIdsByMemberId(payload.sub)) || [];
+      for (const chatId of chatIds) {
+        await client.join(`chat:${chatId}`);
+      }
 
       await this.presenceService.markOnline(payload.sub, payload.sid);
       this.server.emit('presence', { userId: payload.sub, online: true });
@@ -64,9 +68,9 @@ export class ChatsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async onSend(
     @ConnectedSocket() client: Socket,
     @MessageBody()
-    dto: { chatId: number; body: string; clientMessageId: string; replyToId?: number },
+    dto: SendMessageDto,
   ) {
-    // return this.chatsService.sendMessage(client.data.userId, dto, client);
+    return this.chatsService.sendMessage(client.data.userId, dto, client);
   }
 
   @SubscribeMessage('message:read')
@@ -74,7 +78,7 @@ export class ChatsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: Socket,
     @MessageBody() dto: { chatId: number; upToId: number },
   ) {
-    // return this.chatsService.markRead(client.data.userId, dto.chatId, dto.upToId);
+    return this.chatsService.markRead(client.data.userId, dto.chatId, dto.upToId);
   }
 
   @SubscribeMessage('typing')
@@ -82,7 +86,7 @@ export class ChatsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: Socket,
     @MessageBody() dto: { chatId: number; isTyping: boolean },
   ) {
-    client.to(`conv:${dto.chatId}`).emit('typing', {
+    client.to(`chat:${dto.chatId}`).emit('typing', {
       chatId: dto.chatId,
       userId: client.data.userId,
       isTyping: dto.isTyping,

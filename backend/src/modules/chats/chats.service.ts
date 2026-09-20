@@ -3,6 +3,11 @@ import { ChatsGateway } from '@modules/chats/chats.gateway';
 import { WsException } from '@nestjs/websockets';
 import { MembersRepository } from './members.repository';
 import { MessagesRepository } from './messages.repository';
+import { ChatsRepository } from './chats.repository';
+import { ChatMembersRepository } from './chat-members.repository';
+import { ChatMemberRow } from '@db/schema';
+import { Socket } from 'socket.io';
+import { SendMessageDto } from './dto/send-message.dto';
 
 @Injectable()
 export class ChatsService {
@@ -10,45 +15,54 @@ export class ChatsService {
     readonly chatsGateway: ChatsGateway,
     readonly membersRepository: MembersRepository,
     readonly messagesRepository: MessagesRepository,
+    readonly chatsRepository: ChatsRepository,
+    readonly chatMembersRepository: ChatMembersRepository,
   ) {}
 
-  async getConversationIds() {
-    return [1, 2, 3];
+  async getChatIdsByMemberId(userId: number): Promise<number[] | undefined> {
+    const chatsMember = await this.chatMembersRepository.findByUserId(userId);
+
+    return chatsMember?.chats.map((chat) => chat.id);
   }
 
-  async markRead() {}
+  async markRead(
+    userId: number,
+    chatId: number,
+    lastReadMessageId: number,
+  ): Promise<ChatMemberRow> {
+    return await this.chatMembersRepository.updateLastReadMessageId(
+      userId,
+      chatId,
+      lastReadMessageId,
+    );
+  }
 
-  // async sendMessage(senderId: number, dto: SendMessageDto, client: Socket) {
-  //   // 1. авторизация — член чата?
-  //   if (!(await this.membersRepository.isMember(dto.chatId, senderId))) {
-  //     throw new WsException('forbidden');
-  //   }
+  async sendMessage(senderId: number, dto: SendMessageDto, client: Socket) {
+    // Проверка что пользователь член чата
+    if (!(await this.membersRepository.isMember(dto.chatId, senderId))) {
+      throw new WsException('forbidden');
+    }
 
-  //   // 2. идемпотентность: если (senderId, clientMessageId) уже есть — вернуть существующее
-  //   const existing = await this.messagesRepository.findByClientId(senderId, dto.clientMessageId);
-  //   if (existing) {
-  //     client.emit('message:ack', existing);
-  //     return;
-  //   }
+    // Проверка на идемпотентность (если сообщение уже отправили ранее)
+    const existing = await this.messagesRepository.findByClientId(senderId, dto.clientMessageId);
+    if (existing) {
+      client.emit('message:ack', existing);
+      return;
+    }
 
-  //   // 3. вставка (unique-индекс ловит гонку при параллельных retry)
-  //   const msg = await this.messagesRepository.insertWithConversationTouch({
-  //     chatId: dto.chatId,
-  //     senderId,
-  //     body: dto.body,
-  //     clientMessageId: dto.clientMessageId,
-  //     replyToId: dto.replyToId,
-  //   });
+    const msg = await this.messagesRepository.createOne({
+      chatId: dto.chatId,
+      senderId,
+      body: dto.body,
+      clientMessageId: dto.clientMessageId,
+      replyToId: dto.replyToId,
+    });
 
-  //   // 4. ack отправителю (все его устройства — комната user:)
-  //   this.chatsGateway.server.to(`user:${senderId}`).emit('message:ack', msg);
+    this.chatsGateway.server.to(`user:${senderId}`).emit('message:ack', msg);
+    this.chatsGateway.server.to(`chat:${dto.chatId}`).emit('message:new', msg);
 
-  //   // 5. новое сообщение — всем в комнате чата
-  //   this.chatsGateway.server.to(`conv:${dto.chatId}`).emit('message:new', msg);
+    // await this.push.notifyOfflineMembers(dto.chatId, senderId, msg);
 
-  //   // 6. offline-получателям — пуш (в отдельной очереди/сервисе)
-  //   await this.push.notifyOfflineMembers(dto.chatId, senderId, msg);
-
-  //   return msg;
-  // }
+    return msg;
+  }
 }
