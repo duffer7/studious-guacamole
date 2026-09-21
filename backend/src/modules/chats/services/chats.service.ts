@@ -1,18 +1,18 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
-import { ChatsGateway } from '@modules/chats/chats.gateway';
 import { WsException } from '@nestjs/websockets';
-import { MessagesRepository } from './messages.repository';
-import { ChatsRepository } from './chats.repository';
-import { ChatMembersRepository } from './chat-members.repository';
-import { ChatMemberRow, chats, MessageRow, NewChatMemberRow, NewChatRow } from '@db/schema';
 import { Socket } from 'socket.io';
-import { SendMessageDto } from './dto/request/send-message.dto';
-import { ChatSummaryDto } from './dto/response/chat-summary.dto';
-import { MessageDto } from './dto/response/message.dto';
-import { CreateDirectChatDto } from './dto/request/create-direct-chat.dto';
-import { ChatType } from './types/chat-type.enum';
-import { CreateGroupChatDto } from './dto/request/create-group-chat.dto';
-import { AddMembersDto } from './dto/request/add-member.dto';
+import { ChatMemberRow, MessageRow, NewChatMemberRow, NewChatRow } from '@db/schema';
+import { ChatsGateway } from '@modules/chats/gateways/chats.gateway';
+import { MessagesRepository } from '@modules/chats/repositories/messages.repository';
+import { ChatsRepository } from '@modules/chats/repositories/chats.repository';
+import { ChatMembersRepository } from '@modules/chats/repositories/chat-members.repository';
+import { SendMessageDto } from '@modules/chats/dto/request/send-message.dto';
+import { ChatSummaryDto } from '@modules/chats/dto/response/chat-summary.dto';
+import { MessageDto } from '@modules/chats/dto/response/message.dto';
+import { CreateDirectChatDto } from '@modules/chats/dto/request/create-direct-chat.dto';
+import { ChatType } from '@modules/chats/types/chat-type.enum';
+import { CreateGroupChatDto } from '@modules/chats/dto/request/create-group-chat.dto';
+import { AddMembersDto } from '@modules/chats/dto/request/add-member.dto';
 
 @Injectable()
 export class ChatsService {

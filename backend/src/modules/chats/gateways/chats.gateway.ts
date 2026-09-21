@@ -10,10 +10,10 @@ import {
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { TokenStoreService } from '@modules/security/token-store.service';
-import { PresenceService } from './presence.service';
-import { ChatsService } from './chats.service';
+import { PresenceService } from '@modules/chats/services/presence.service';
+import { ChatsService } from '@modules/chats/services/chats.service';
 import { JwtPayload } from '@modules/security/types';
-import { SendMessageDto } from './dto/request/send-message.dto';
+import { SendMessageDto } from '@modules/chats/dto/request/send-message.dto';
 
 @WebSocketGateway({ cors: true, namespace: '/chat' })
 export class ChatsGateway implements OnGatewayConnection, OnGatewayDisconnect {

@@ -1,4 +1,3 @@
-// backend/src/modules/chats/chats.controller.ts
 import {
   Body,
   Controller,
@@ -13,11 +12,11 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@modules/security/jwt-auth.guard';
 import type { AuthUser } from '@modules/security/types';
-import { ChatsService } from '@modules/chats/chats.service';
+import { ChatsService } from '@modules/chats/services/chats.service';
 import { GetMessagesDto } from '@modules/chats/dto/request/get-message.dto';
-import { CreateDirectChatDto } from './dto/request/create-direct-chat.dto';
-import { CreateGroupChatDto } from './dto/request/create-group-chat.dto';
-import { AddMembersDto } from './dto/request/add-member.dto';
+import { CreateDirectChatDto } from '@modules/chats/dto/request/create-direct-chat.dto';
+import { CreateGroupChatDto } from '@modules/chats/dto/request/create-group-chat.dto';
+import { AddMembersDto } from '@modules/chats/dto/request/add-member.dto';
 
 @ApiTags('chats')
 @ApiBearerAuth()

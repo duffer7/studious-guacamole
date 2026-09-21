@@ -1,7 +1,7 @@
-import { type Database, DB } from '@db/db.provider';
-import { ChatRow, chats, NewChatRow } from '@db/schema';
 import { Inject, Injectable } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
+import { type Database, DB } from '@db/db.provider';
+import { ChatRow, chats, NewChatRow } from '@db/schema';
 
 @Injectable()
 export class ChatsRepository {

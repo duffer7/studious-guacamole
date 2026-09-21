@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { MessageDto } from './message.dto';
+import { MessageDto } from '@modules/chats/dto/response/message.dto';
 import { type PublicUserDto } from '@modules/user/dto/public-user.dto';
 
 export class ChatSummaryDto {
