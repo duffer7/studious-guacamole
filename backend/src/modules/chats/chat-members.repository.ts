@@ -1,11 +1,20 @@
 import { type Database, DB } from '@db/db.provider';
-import { type ChatMemberRow, type ChatMemberWithСhats, chatMembers } from '@db/schema';
+import {
+  type ChatMemberRow,
+  type ChatMemberWithСhats,
+  NewChatMemberRow,
+  chatMembers,
+} from '@db/schema';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
 
 @Injectable()
 export class ChatMembersRepository {
   constructor(@Inject(DB) private readonly db: Database) {}
+
+  async createMany(data: NewChatMemberRow[]): Promise<ChatMemberRow[]> {
+    return await this.db.insert(chatMembers).values(data).returning();
+  }
 
   findByUserIdWithChats(userId: number): Promise<ChatMemberWithСhats | undefined> {
     return this.db.query.chatMembers.findFirst({

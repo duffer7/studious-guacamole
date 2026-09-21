@@ -12,5 +12,5 @@ export class CreateGroupChatDto {
   @ArrayMinSize(1)
   @IsInt({ each: true })
   @Min(1, { each: true })
-  memberIds: number[];
+  targetUserIds: number[];
 }

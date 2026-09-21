@@ -4,11 +4,15 @@ import { WsException } from '@nestjs/websockets';
 import { MessagesRepository } from './messages.repository';
 import { ChatsRepository } from './chats.repository';
 import { ChatMembersRepository } from './chat-members.repository';
-import { ChatMemberRow, MessageRow } from '@db/schema';
+import { ChatMemberRow, chats, MessageRow, NewChatMemberRow, NewChatRow } from '@db/schema';
 import { Socket } from 'socket.io';
 import { SendMessageDto } from './dto/request/send-message.dto';
 import { ChatSummaryDto } from './dto/response/chat-summary.dto';
 import { MessageDto } from './dto/response/message.dto';
+import { CreateDirectChatDto } from './dto/request/create-direct-chat.dto';
+import { ChatType } from './types/chat-type.enum';
+import { CreateGroupChatDto } from './dto/request/create-group-chat.dto';
+import { AddMembersDto } from './dto/request/add-member.dto';
 
 @Injectable()
 export class ChatsService {
@@ -23,6 +27,57 @@ export class ChatsService {
     const chatsMember = await this.chatMembersRepository.findByUserIdWithChats(userId);
 
     return chatsMember?.chats.map((chat) => chat.id);
+  }
+
+  async createDirectChat(userId: number, body: CreateDirectChatDto): Promise<NewChatRow> {
+    // make transactional
+    const { targetUserId } = body;
+
+    const [a, b] = [userId, targetUserId].sort((x, y) => x - y);
+    const directKey = `${a}:${b}`;
+
+    const existing = await this.chatsRepository.findOneByDirectKey(directKey);
+    if (existing) {
+      return existing;
+    }
+
+    const newChat: NewChatRow = { createdBy: userId, type: ChatType.direct, directKey: directKey };
+
+    const createdChat = await this.chatsRepository.createOne(newChat);
+
+    const newSenderChatMember: NewChatMemberRow = { chatId: createdChat.id, userId: userId };
+    const newTargetChatMember: NewChatMemberRow = { chatId: createdChat.id, userId: targetUserId };
+    await this.chatMembersRepository.createMany([newSenderChatMember, newTargetChatMember]);
+
+    return createdChat;
+  }
+
+  async createGroupChat(userId: number, body: CreateGroupChatDto): Promise<NewChatRow> {
+    // make transactional
+    const { targetUserIds, title } = body;
+
+    const newChat: NewChatRow = { title: title, createdBy: userId, type: ChatType.group };
+    const createdChat = await this.chatsRepository.createOne(newChat);
+
+    const newSenderChatMember: NewChatMemberRow = { chatId: createdChat.id, userId: userId };
+    const newTargetChatMembers: NewChatMemberRow[] = targetUserIds.map((item) => ({
+      chatId: createdChat.id,
+      userId: item,
+    }));
+    await this.chatMembersRepository.createMany([newSenderChatMember, ...newTargetChatMembers]);
+
+    return createdChat;
+  }
+
+  async addMembers(chatId: number, dto: AddMembersDto): Promise<NewChatMemberRow[]> {
+    const { targetUserIds } = dto;
+    const newTargetChatMembers: NewChatMemberRow[] = targetUserIds.map((item) => ({
+      chatId: chatId,
+      userId: item,
+    }));
+    const createdMembers = await this.chatMembersRepository.createMany(newTargetChatMembers);
+
+    return createdMembers;
   }
 
   async markRead(
