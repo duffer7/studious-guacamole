@@ -131,9 +131,8 @@ export class AuthService {
         field,
       });
     }
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
-
-    return this.usersService.create({ ...dto, password: hashedPassword });
+    // Хеширование пароля выполняется в UsersRepository.insert
+    return this.usersService.create(dto);
   }
 
   async refresh(refreshToken: string): Promise<AuthTokens> {

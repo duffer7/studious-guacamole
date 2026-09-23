@@ -17,6 +17,10 @@ export class UsersService {
     return this.usersRepository.findByUsernameOrEmail(username, email);
   }
 
+  search(query: string, excludeUserId: number): Promise<UserRow[]> {
+    return this.usersRepository.search(query, excludeUserId);
+  }
+
   setMfa(userId: number, mfaEnabled: boolean, mfaSecret: string | null): Promise<UserRow> {
     return this.usersRepository.updateMfa(userId, mfaEnabled, mfaSecret);
   }

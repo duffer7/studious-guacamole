@@ -7,6 +7,7 @@ import {
   ConnectedSocket,
   MessageBody,
 } from '@nestjs/websockets';
+import { forwardRef, Inject } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { TokenStoreService } from '@modules/security/token-store.service';
@@ -22,6 +23,7 @@ export class ChatsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private readonly jwt: JwtService,
     private readonly tokenStore: TokenStoreService,
+    @Inject(forwardRef(() => ChatsService))
     private readonly chatsService: ChatsService,
     private readonly presenceService: PresenceService,
   ) {}
@@ -62,6 +64,31 @@ export class ChatsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const stillOnline = await this.presenceService.markOffline(userId, client.data.sid);
       if (!stillOnline) this.server.emit('presence', { userId, online: false });
     }
+  }
+
+  /** Уведомляет участников о новом чате и подписывает их сокеты на комнату чата. */
+  async notifyChatCreated(chatId: number, chat: unknown, userIds: number[]) {
+    for (const userId of userIds) {
+      // подписываем все активные сокеты пользователя на комнату чата
+      const sockets = await this.server.in(`user:${userId}`).fetchSockets();
+      for (const socket of sockets) {
+        socket.join(`chat:${chatId}`);
+      }
+      this.server.to(`user:${userId}`).emit('chat:new', chat);
+    }
+  }
+
+  /** Уведомляет участников о добавлении новых членов и подписывает их сокеты. */
+  async notifyMembersAdded(chatId: number, userIds: number[]) {
+    for (const userId of userIds) {
+      const sockets = await this.server.in(`user:${userId}`).fetchSockets();
+      for (const socket of sockets) {
+        socket.join(`chat:${chatId}`);
+      }
+      this.server.to(`user:${userId}`).emit('chat:member:added', { chatId });
+    }
+    // уже в чате — обновляем список участников
+    this.server.to(`chat:${chatId}`).emit('chat:members:changed', { chatId });
   }
 
   @SubscribeMessage('message:send')

@@ -9,7 +9,7 @@ import { useState } from 'react';
 
 export function RegisterForm() {
   const navigate = useNavigate();
-  const { submitRegister, isPending, error: requestError, reset } = useRegister();
+  const { submitRegister, error: requestError, reset } = useRegister();
 
   // const [displayName, setDisplayName] = useState('');
   // const [email, setEmail] = useState('');

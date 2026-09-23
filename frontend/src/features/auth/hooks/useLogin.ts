@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppDispatch } from '@/store/hooks';
-import { setCredentials } from '@features/auth/auth.slice';
+import { setCredentials, setUser } from '@features/auth/auth.slice';
 import { setTokens } from '@/api/client';
-import { login } from '@features/auth/api';
+import { getMe, login } from '@features/auth/api';
+import { disconnectSocket } from '@features/chats/socket';
 import type { LoginDto, LoginResult, MfaRequired } from '@features/auth/types';
 import { useNavigate } from '@tanstack/react-router';
 
@@ -16,28 +17,41 @@ function isMfaRequired(result: LoginResult): result is MfaRequired {
 export function useLogin() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [step, setStep] = useState<LoginStep>('credentials');
   const [pending, setPending] = useState<{ username: string; password: string } | null>(null);
 
   const mutation = useMutation({
-    mutationFn: (dto: LoginDto) => login(dto),
+    mutationFn: async (dto: LoginDto): Promise<LoginResult | null> => {
+      const result = await login(dto);
+      if (isMfaRequired(result)) return result;
+      setTokens({
+        accessToken: result.access_token,
+        refreshToken: result.refresh_token,
+      });
+      // новый пользователь — не тащим данные прошлой сессии:
+      // сбрасываем кэш и пересоздаём сокет с новым токеном
+      disconnectSocket();
+      queryClient.clear();
+
+      // токены уже сохранены, поэтому getMe пройдёт авторизованно;
+      // без этого user остаётся null и страница чатов не отрендерится
+      const user = await getMe();
+
+      dispatch(
+        setCredentials({ accessToken: result.access_token, refreshToken: result.refresh_token }),
+      );
+      dispatch(setUser(user));
+
+      return result;
+    },
     onSuccess: (result, dto) => {
-      if (isMfaRequired(result)) {
+      if (result && isMfaRequired(result)) {
         setPending({ username: dto.username, password: dto.password });
         setStep('mfa');
         return;
       }
 
-      setTokens({
-        accessToken: result.access_token,
-        refreshToken: result.refresh_token,
-      });
-      dispatch(
-        setCredentials({
-          accessToken: result.access_token,
-          refreshToken: result.refresh_token,
-        }),
-      );
       setStep('credentials');
       setPending(null);
 

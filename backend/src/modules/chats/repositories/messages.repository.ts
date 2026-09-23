@@ -1,7 +1,7 @@
 import { type Database, DB } from '@db/db.provider';
 import { MessageRow, messages, NewMessageRow } from '@db/schema';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq, isNull, lt } from 'drizzle-orm';
+import { and, count, desc, eq, gt, isNull, lt, ne } from 'drizzle-orm';
 
 @Injectable()
 export class MessagesRepository {
@@ -17,6 +17,27 @@ export class MessagesRepository {
       orderBy: desc(messages.id),
       limit,
     });
+  }
+
+  /** Количество непрочитанных сообщений (id > lastReadMessageId, автор — не сам пользователь). */
+  async countUnread(
+    chatId: number,
+    userId: number,
+    lastReadMessageId: number | null,
+  ): Promise<number> {
+    const [row] = await this.db
+      .select({ value: count() })
+      .from(messages)
+      .where(
+        and(
+          eq(messages.chatId, chatId),
+          ne(messages.senderId, userId),
+          isNull(messages.deletedAt),
+          lastReadMessageId ? gt(messages.id, lastReadMessageId) : undefined,
+        ),
+      );
+
+    return Number(row?.value ?? 0);
   }
 
   findByClientId(senderId: number, clientMessageId: string): Promise<MessageRow | undefined> {

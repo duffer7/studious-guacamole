@@ -1,4 +1,11 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  forwardRef,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { WsException } from '@nestjs/websockets';
 import { Socket } from 'socket.io';
 import { ChatMemberRow, MessageRow, NewChatMemberRow, NewChatRow } from '@db/schema';
@@ -13,10 +20,12 @@ import { CreateDirectChatDto } from '@modules/chats/dto/request/create-direct-ch
 import { ChatType } from '@modules/chats/types/chat-type.enum';
 import { CreateGroupChatDto } from '@modules/chats/dto/request/create-group-chat.dto';
 import { AddMembersDto } from '@modules/chats/dto/request/add-member.dto';
+import { PublicUserDto } from '@modules/user/dto/public-user.dto';
 
 @Injectable()
 export class ChatsService {
   constructor(
+    @Inject(forwardRef(() => ChatsGateway))
     readonly chatsGateway: ChatsGateway,
     readonly messagesRepository: MessagesRepository,
     readonly chatsRepository: ChatsRepository,
@@ -24,14 +33,17 @@ export class ChatsService {
   ) {}
 
   async getChatIdsByMemberId(userId: number): Promise<number[] | undefined> {
-    const chatsMember = await this.chatMembersRepository.findByUserIdWithChats(userId);
+    const memberships = await this.chatMembersRepository.findByUserIdWithChats(userId);
 
-    return chatsMember?.chats.map((chat) => chat.id);
+    return memberships?.map((m) => m.chat.id);
   }
 
   async createDirectChat(userId: number, body: CreateDirectChatDto): Promise<NewChatRow> {
-    // make transactional
     const { targetUserId } = body;
+
+    if (targetUserId === userId) {
+      throw new BadRequestException('cannot create direct chat with yourself');
+    }
 
     const [a, b] = [userId, targetUserId].sort((x, y) => x - y);
     const directKey = `${a}:${b}`;
@@ -41,43 +53,94 @@ export class ChatsService {
       return existing;
     }
 
-    const newChat: NewChatRow = { createdBy: userId, type: ChatType.direct, directKey: directKey };
+    const createdChat = await this.chatsRepository.transaction(async (tx) => {
+      const chat = await this.chatsRepository.createOne(
+        { createdBy: userId, type: ChatType.direct, directKey },
+        tx,
+      );
 
-    const createdChat = await this.chatsRepository.createOne(newChat);
+      await this.chatMembersRepository.createMany(
+        [
+          { chatId: chat.id, userId },
+          { chatId: chat.id, userId: targetUserId },
+        ],
+        tx,
+      );
 
-    const newSenderChatMember: NewChatMemberRow = { chatId: createdChat.id, userId: userId };
-    const newTargetChatMember: NewChatMemberRow = { chatId: createdChat.id, userId: targetUserId };
-    await this.chatMembersRepository.createMany([newSenderChatMember, newTargetChatMember]);
+      return chat;
+    });
+
+    const summary = await this.getChat(userId, createdChat.id);
+    await this.chatsGateway.notifyChatCreated(createdChat.id, summary, [userId, targetUserId]);
 
     return createdChat;
   }
 
   async createGroupChat(userId: number, body: CreateGroupChatDto): Promise<NewChatRow> {
-    // make transactional
     const { targetUserIds, title } = body;
 
-    const newChat: NewChatRow = { title: title, createdBy: userId, type: ChatType.group };
-    const createdChat = await this.chatsRepository.createOne(newChat);
+    // создатель + уникальные участники, без дублей
+    const memberIds = [...new Set([userId, ...targetUserIds])];
 
-    const newSenderChatMember: NewChatMemberRow = { chatId: createdChat.id, userId: userId };
-    const newTargetChatMembers: NewChatMemberRow[] = targetUserIds.map((item) => ({
-      chatId: createdChat.id,
-      userId: item,
-    }));
-    await this.chatMembersRepository.createMany([newSenderChatMember, ...newTargetChatMembers]);
+    const createdChat = await this.chatsRepository.transaction(async (tx) => {
+      const chat = await this.chatsRepository.createOne(
+        { title, createdBy: userId, type: ChatType.group },
+        tx,
+      );
+
+      await this.chatMembersRepository.createMany(
+        memberIds.map((id) => ({
+          chatId: chat.id,
+          userId: id,
+          role: id === userId ? 'owner' : 'member',
+        })),
+        tx,
+      );
+
+      return chat;
+    });
+
+    const summary = await this.getChat(userId, createdChat.id);
+    await this.chatsGateway.notifyChatCreated(createdChat.id, summary, memberIds);
 
     return createdChat;
   }
 
-  async addMembers(chatId: number, dto: AddMembersDto): Promise<NewChatMemberRow[]> {
-    const { targetUserIds } = dto;
-    const newTargetChatMembers: NewChatMemberRow[] = targetUserIds.map((item) => ({
-      chatId: chatId,
-      userId: item,
-    }));
-    const createdMembers = await this.chatMembersRepository.createMany(newTargetChatMembers);
+  async addMembers(
+    chatId: number,
+    actorId: number,
+    dto: AddMembersDto,
+  ): Promise<NewChatMemberRow[]> {
+    const chat = await this.chatsRepository.findOneById(chatId);
+    if (!chat) {
+      throw new NotFoundException('chat not found');
+    }
 
-    return createdMembers;
+    const actor = await this.chatMembersRepository.findByUserIdAndChatId(chatId, actorId);
+    if (!actor) {
+      throw new ForbiddenException('forbidden');
+    }
+
+    if (chat.type === ChatType.direct) {
+      throw new BadRequestException('cannot add members to a direct chat');
+    }
+
+    const { targetUserIds } = dto;
+    const existing = await this.chatMembersRepository.findExistingUserIds(chatId, targetUserIds);
+
+    const toAdd: NewChatMemberRow[] = targetUserIds
+      .filter((id) => !existing.includes(id))
+      .map((id) => ({ chatId, userId: id }));
+
+    if (toAdd.length === 0) return [];
+
+    const created = await this.chatMembersRepository.createMany(toAdd);
+    await this.chatsGateway.notifyMembersAdded(
+      chatId,
+      toAdd.map((m) => m.userId),
+    );
+
+    return created;
   }
 
   async markRead(
@@ -102,8 +165,10 @@ export class ChatsService {
     // Проверка на идемпотентность (если сообщение уже отправили ранее)
     const existing = await this.messagesRepository.findByClientId(senderId, dto.clientMessageId);
     if (existing) {
-      client.emit('message:ack', existing);
-      return;
+      const existingDto = this.toMessageDto(existing);
+      // ack только отправителю (получатели уже видели это через message:new ранее)
+      client.emit('message:ack', existingDto);
+      return existingDto;
     }
 
     const message = await this.messagesRepository.createOne({
@@ -114,12 +179,22 @@ export class ChatsService {
       replyToId: dto.replyToId,
     });
 
-    this.chatsGateway.server.to(`user:${senderId}`).emit('message:ack', message);
-    this.chatsGateway.server.to(`chat:${dto.chatId}`).emit('message:new', message);
+    const messageDto = this.toMessageDto(message);
 
-    // await this.push.notifyOfflineMembers(dto.chatId, senderId, msmessageg);
+    this.chatsGateway.server.to(`user:${senderId}`).emit('message:ack', messageDto);
 
-    return message;
+    // Доставляем всем участникам чата напрямую в их пользовательские комнаты.
+    // Это не зависит от того, собраны ли комнаты chat:{id} к моменту отправки
+    // (сокет мог подключиться раньше, чем пользователь вошёл в чат).
+    const memberIds = await this.chatMembersRepository.findUserIds(dto.chatId);
+    for (const memberId of memberIds) {
+      if (memberId === senderId) continue;
+      this.chatsGateway.server.to(`user:${memberId}`).emit('message:new', messageDto);
+    }
+
+    // await this.push.notifyOfflineMembers(dto.chatId, senderId, message);
+
+    return messageDto;
   }
 
   private toMessageDto(m: MessageRow): MessageDto {
@@ -135,24 +210,86 @@ export class ChatsService {
     };
   }
 
+  private toPublicUser(user: {
+    id: number;
+    username: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+  }): PublicUserDto {
+    return new PublicUserDto(user);
+  }
+
   async listChats(userId: number): Promise<ChatSummaryDto[]> {
-    const chatsMember = await this.chatMembersRepository.findByUserIdWithChats(userId);
-    const chatIds = chatsMember?.chats.map((c) => c.id) ?? [];
-    if (chatIds.length === 0) return [];
+    const memberships = await this.chatMembersRepository.findByUserIdWithChats(userId);
+    if (!memberships || memberships.length === 0) return [];
 
     const result: ChatSummaryDto[] = [];
-    for (const chat of chatsMember!.chats) {
+    for (const { membership, chat } of memberships) {
       const [lastMessage] = await this.messagesRepository.findHistory(chat.id, undefined, 1);
+      const members = await this.chatMembersRepository.findMembersWithUsers(chat.id);
+      const unreadCount = await this.messagesRepository.countUnread(
+        chat.id,
+        userId,
+        membership.lastReadMessageId,
+      );
+
       result.push({
         id: chat.id,
         type: chat.type,
         title: chat.title,
-        unreadCount: 0, // TODO: count(id > lastReadMessageId)
+        unreadCount,
         lastMessage: lastMessage ? this.toMessageDto(lastMessage) : null,
-        members: [], // TODO: участники
+        members: members.map((m) => this.toPublicUser(m.user)),
       });
     }
+
+    // свежие чаты сверху
+    result.sort((a, b) => {
+      const at = a.lastMessage ? Date.parse(a.lastMessage.createdAt) : 0;
+      const bt = b.lastMessage ? Date.parse(b.lastMessage.createdAt) : 0;
+      return bt - at;
+    });
+
     return result;
+  }
+
+  async getChat(userId: number, chatId: number): Promise<ChatSummaryDto> {
+    const membership = await this.chatMembersRepository.findByUserIdAndChatId(chatId, userId);
+    if (!membership) {
+      throw new ForbiddenException('forbidden');
+    }
+
+    const chat = await this.chatsRepository.findOneById(chatId);
+    if (!chat) {
+      throw new NotFoundException('chat not found');
+    }
+
+    const [lastMessage] = await this.messagesRepository.findHistory(chatId, undefined, 1);
+    const members = await this.chatMembersRepository.findMembersWithUsers(chatId);
+    const unreadCount = await this.messagesRepository.countUnread(
+      chatId,
+      userId,
+      membership.lastReadMessageId,
+    );
+
+    return {
+      id: chat.id,
+      type: chat.type,
+      title: chat.title,
+      unreadCount,
+      lastMessage: lastMessage ? this.toMessageDto(lastMessage) : null,
+      members: members.map((m) => this.toPublicUser(m.user)),
+    };
+  }
+
+  async getMembers(userId: number, chatId: number): Promise<PublicUserDto[]> {
+    const membership = await this.chatMembersRepository.findByUserIdAndChatId(chatId, userId);
+    if (!membership) {
+      throw new ForbiddenException('forbidden');
+    }
+
+    const members = await this.chatMembersRepository.findMembersWithUsers(chatId);
+    return members.map((m) => this.toPublicUser(m.user));
   }
 
   async getHistory(userId: number, chatId: number, before: number | undefined, limit: number) {

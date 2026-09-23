@@ -3,7 +3,6 @@ import type { User } from '@features/auth/types';
 import { getAccessToken, getRefreshToken, setTokens } from '@/api/client';
 import { getMe, logout as logoutApi, logoutAll as logoutAllApi } from '@features/auth/api';
 import type { RootState } from '@/store';
-import { useNavigate } from '@tanstack/react-router';
 
 interface AuthState {
   user: User | null;

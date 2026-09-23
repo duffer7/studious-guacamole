@@ -1,84 +1,68 @@
-import { Fragment } from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemDescription,
-  ItemGroup,
-  ItemMedia,
-  ItemSeparator,
-  ItemTitle,
-} from '@/components/ui/item';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
-import { ChevronRightIcon } from 'lucide-react';
+import { Spinner } from '@components/ui/spinner';
+import { useChats } from '@features/chats/hooks/useChats';
+import { ChatList } from '@features/chats/components/ChatList';
+import { ChatWindow } from '@features/chats/components/ChatWindow';
+import { NewChatDialog } from '@features/chats/components/NewChatDialog';
+import { useAppSelector } from '@/store/hooks';
+import { selectUser } from '@features/auth/auth.slice';
+import { cn } from 'cn';
 
 export function ChatsPage() {
-  const chats = [
-    {
-      avatarUrl: 'https://github.com/evilrabbit.png',
-      initials: 'ER',
-      fullname: 'Evil Rabbit',
-      lastMessage: 'Message of me...',
-    },
-    {
-      avatarUrl: 'https://github.com/evilrabbit.png',
-      initials: 'ER',
-      fullname: 'Evil Rabbit',
-      lastMessage: 'Message of me...',
-    },
-    {
-      avatarUrl: 'https://github.com/evilrabbit.png',
-      initials: 'ER',
-      fullname: 'Evil Rabbit',
-      lastMessage: 'Message of me...',
-    },
-    {
-      avatarUrl: 'https://github.com/evilrabbit.png',
-      initials: 'ER',
-      fullname: 'Evil Rabbit',
-      lastMessage: 'Message of me...',
-    },
-    {
-      avatarUrl: 'https://github.com/evilrabbit.png',
-      initials: 'ER',
-      fullname: 'Evil Rabbit',
-      lastMessage: 'Message of me...',
-    },
-  ];
+  const user = useAppSelector(selectUser);
+  const { data: chats, isLoading } = useChats();
+  const [activeChatId, setActiveChatId] = useState<number | null>(null);
+
+  const currentUserId = user?.id;
+  const activeChat = chats?.find((c) => c.id === activeChatId) ?? null;
+
+  // пока не известен id текущего пользователя, не рендерим чаты:
+  // иначе имена собеседников/«свои» сообщения определяются по чужому id
+  if (currentUserId === undefined) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center">
+        <Spinner />
+      </div>
+    );
+  }
+
   return (
-    <div className="mx-auto w-full p-4">
-      <Card>
-        <CardHeader>
+    <div className="mx-auto w-full max-w-5xl p-4 pb-24">
+      <Card className="h-[calc(100dvh-8rem)] overflow-hidden">
+        <CardHeader className="flex-row items-center justify-between">
           <CardTitle>Chats</CardTitle>
+          <NewChatDialog onCreated={setActiveChatId} />
         </CardHeader>
-        <CardContent>
-          <ItemGroup className="flex w-full flex-col gap-0">
-            {chats.map((chat, index) => (
-              <Fragment key={index}>
-                {index > 0 && <ItemSeparator className="w-full shrink-0" />}
-                <Item
-                  render={
-                    <a href="#">
-                      <ItemMedia>
-                        <Avatar className="size-10">
-                          <AvatarImage src={chat.avatarUrl} />
-                          <AvatarFallback>{chat.initials}</AvatarFallback>
-                        </Avatar>
-                      </ItemMedia>
-                      <ItemContent>
-                        <ItemTitle>{chat.fullname}</ItemTitle>
-                        <ItemDescription>{chat.lastMessage}</ItemDescription>
-                      </ItemContent>
-                      <ItemActions>
-                        <ChevronRightIcon className="size-4" />
-                      </ItemActions>
-                    </a>
-                  }
-                />
-              </Fragment>
-            ))}
-          </ItemGroup>
+        <CardContent className="min-h-0 flex-1 overflow-hidden p-0">
+          <div className="grid h-full min-h-0 grid-cols-1 md:grid-cols-[20rem_1fr]">
+            {/* Список чатов */}
+            <div
+              className={cn(
+                'min-h-0 overflow-y-auto border-border p-2 md:border-r',
+                activeChat && 'hidden md:block',
+              )}
+            >
+              <ChatList
+                chats={chats ?? []}
+                currentUserId={currentUserId}
+                activeChatId={activeChatId}
+                isLoading={isLoading}
+                onSelect={setActiveChatId}
+              />
+            </div>
+
+            {/* Окно переписки */}
+            <div className={cn('min-h-0 min-w-0', !activeChat && 'hidden md:block')}>
+              {activeChat ? (
+                <ChatWindow chat={activeChat} currentUserId={currentUserId} />
+              ) : (
+                <div className="flex h-full items-center justify-center p-8 text-center text-sm text-muted-foreground">
+                  Выберите чат, чтобы начать переписку
+                </div>
+              )}
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

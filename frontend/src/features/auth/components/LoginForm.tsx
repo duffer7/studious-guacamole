@@ -127,8 +127,3 @@ export function LoginForm() {
     </>
   );
 }
-
-function describeError(error: unknown): string {
-  if (error instanceof Error) return 'Неверные данные или слишком много попыток.';
-  return 'Что-то пошло не так.';
-}

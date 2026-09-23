@@ -81,15 +81,26 @@ describe('UsersRepository', () => {
   });
 
   describe('insert', () => {
-    it('вставляет входные данные и разворачивает возвращённый массив', async () => {
+    it('хеширует пароль, вставляет данные и разворачивает возвращённый массив', async () => {
       const input = { username: 'artemii', password: '1234', email: 'example@example.com' };
       const created = { id: 1, ...input } as UserRow;
       insertReturning.mockResolvedValue([created]);
       const result = await repo.insert(input as never);
 
       expect(insert).toHaveBeenCalledWith(users);
-      expect(insertValues).toHaveBeenCalledWith(input);
       expect(insert).toHaveBeenCalledOnce();
+
+      // пароль не должен сохраняться в открытом виде
+      const inserted = insertValues.mock.calls[0][0] as {
+        password: string;
+        username: string;
+        email: string;
+      };
+      expect(inserted.password).not.toBe(input.password);
+      expect(inserted.password).toMatch(/^\$2[aby]\$/);
+      // прочие поля не изменяются
+      expect(inserted.username).toBe(input.username);
+      expect(inserted.email).toBe(input.email);
       expect(result).toBe(created);
     });
   });

@@ -51,14 +51,30 @@ export class ChatsController {
     return this.chatsService.createGroupChat(req.user.userId, body);
   }
 
+  @Get(':chatId')
+  @ApiOperation({ summary: 'Информация о чате' })
+  async getOne(@Req() req: { user: AuthUser }, @Param('chatId', ParseIntPipe) chatId: number) {
+    return this.chatsService.getChat(req.user.userId, chatId);
+  }
+
+  @Get(':chatId/members')
+  @ApiOperation({ summary: 'Участники чата' })
+  async members(@Req() req: { user: AuthUser }, @Param('chatId', ParseIntPipe) chatId: number) {
+    return this.chatsService.getMembers(req.user.userId, chatId);
+  }
+
   @Post(':chatId/members')
   @ApiOperation({ summary: 'Добавить участников в групповой чат' })
   @ApiResponse({
     status: 201,
     description: 'Успешное добавление участников в групповой чат',
   })
-  async addMembers(@Param('chatId', ParseIntPipe) chatId: number, @Body() body: AddMembersDto) {
-    return this.chatsService.addMembers(chatId, body);
+  async addMembers(
+    @Req() req: { user: AuthUser },
+    @Param('chatId', ParseIntPipe) chatId: number,
+    @Body() body: AddMembersDto,
+  ) {
+    return this.chatsService.addMembers(chatId, req.user.userId, body);
   }
 
   @Get(':chatId/messages')

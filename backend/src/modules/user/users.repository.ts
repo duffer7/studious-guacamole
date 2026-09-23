@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { eq, or } from 'drizzle-orm';
+import { eq, ilike, or } from 'drizzle-orm';
 import { DB, type Database } from '@db/db.provider';
 import { users, type NewUserRow, type UserRow } from '@db/schema';
 import * as bcrypt from 'bcrypt';
@@ -18,6 +18,19 @@ export class UsersRepository {
     return this.db.query.users.findFirst({
       where: eq(users.username, username),
     });
+  }
+
+  /** Поиск пользователей по username/displayName, исключая самого вызывающего. */
+  async search(query: string, excludeUserId: number, limit = 20): Promise<UserRow[]> {
+    const pattern = `%${query}%`;
+
+    return this.db.query.users
+      .findMany({
+        where: or(ilike(users.username, pattern), ilike(users.displayName, pattern)),
+        orderBy: (u, { asc }) => [asc(u.username)],
+        limit,
+      })
+      .then((rows) => rows.filter((r) => r.id !== excludeUserId));
   }
 
   findByUsernameOrEmail(username?: string, email?: string): Promise<UserRow | undefined> {

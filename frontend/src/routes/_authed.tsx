@@ -1,5 +1,6 @@
 import { Outlet, createFileRoute, redirect } from '@tanstack/react-router';
 import { store } from '@/store';
+import { useChatSocket } from '@features/chats/hooks/useChatSocket';
 
 export const Route = createFileRoute('/_authed')({
   beforeLoad: async ({ location, context }) => {
@@ -18,6 +19,9 @@ export const Route = createFileRoute('/_authed')({
 });
 
 function AuthedLayout() {
+  // держим WS-соединение открытым на протяжении всей авторизованной зоны
+  useChatSocket();
+
   return (
     <div className="min-h-dvh bg-background text-foreground">
       <Outlet />

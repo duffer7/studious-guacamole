@@ -9,9 +9,21 @@ import { dirname } from 'path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  server: {
+    host: true, // слушать 0.0.0.0, чтобы открывалось с других устройств (телефон)
+    proxy: {
+      '/api': {
+        target: 'http://backend:3000', // в docker-compose фронт ходит к бэку по имени сервиса
+        changeOrigin: true,
+        ws: true, // проксировать WebSocket (socket.io /chat)
+        rewrite: (p) => p.replace(/^\/api/, ''),
+      },
+    },
+  },
   plugins: [tanstackRouter({ target: 'react', autoCodeSplitting: true }), react(), tailwindcss()],
   resolve: {
     alias: {
+      src: path.resolve(__dirname, 'src'),
       '@': path.resolve(__dirname, 'src'),
       '@pages': path.resolve(__dirname, 'src/pages'),
       '@features': path.resolve(__dirname, 'src/features'),

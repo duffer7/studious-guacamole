@@ -1,5 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import type { PublicUser } from './response-user.dto';
+
+/** Минимальный набор полей пользователя, необходимый для публичного представления. */
+export interface PublicUserSource {
+  id: number;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+}
 
 /**
  * Публичное представление пользователя для списков/поиска.
@@ -18,7 +25,7 @@ export class PublicUserDto {
   @ApiProperty({ example: 'https://example.com/avatar.png', nullable: true })
   avatarUrl: string | null;
 
-  constructor(row: PublicUser) {
+  constructor(row: PublicUserSource) {
     this.id = row.id;
     this.username = row.username;
     this.displayName = row.displayName;
