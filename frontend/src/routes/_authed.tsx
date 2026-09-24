@@ -1,6 +1,8 @@
 import { Outlet, createFileRoute, redirect } from '@tanstack/react-router';
 import { store } from '@/store';
 import { useChatSocket } from '@features/chats/hooks/useChatSocket';
+import { CallProvider } from '@features/calls/CallProvider';
+import { CallOverlay } from '@features/calls/CallOverlay';
 
 export const Route = createFileRoute('/_authed')({
   beforeLoad: async ({ location, context }) => {
@@ -23,8 +25,11 @@ function AuthedLayout() {
   useChatSocket();
 
   return (
-    <div className="min-h-dvh bg-background text-foreground">
-      <Outlet />
-    </div>
+    <CallProvider>
+      <div className="min-h-dvh bg-background text-foreground">
+        <Outlet />
+        <CallOverlay />
+      </div>
+    </CallProvider>
   );
 }

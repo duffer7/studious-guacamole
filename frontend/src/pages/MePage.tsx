@@ -36,7 +36,7 @@ export function MePage() {
 
   if (!user) {
     return (
-      <div className="mx-auto w-full max-w-2xl p-4">
+      <div className="mx-auto w-full max-w-2xl px-4 pt-20 pb-10">
         <p className="text-sm text-muted-foreground">Loading…</p>
       </div>
     );
@@ -45,12 +45,12 @@ export function MePage() {
   const initials = (user.displayName ?? user.username).slice(0, 1).toUpperCase();
 
   return (
-    <div className="mx-auto w-full max-w-2xl p-4">
+    <div className="mx-auto w-full max-w-2xl px-4 pt-20 pb-10">
       <Card>
         <CardHeader>
           <div className="flex items-center gap-4">
             <Avatar size="lg">
-              <AvatarImage src="{user.avatarUrl}" alt="{user.username}" />
+              {user.avatarUrl ? <AvatarImage src={user.avatarUrl} alt={user.username} /> : null}
               <AvatarFallback>{initials}</AvatarFallback>
             </Avatar>
             <div className="min-w-0">

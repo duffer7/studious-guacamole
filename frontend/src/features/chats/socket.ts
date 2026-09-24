@@ -24,6 +24,18 @@ function resolveSocketUrl(): { url: string | null; path: string } {
   return { url: null, path: `${path}/socket.io` };
 }
 
+export interface SessionDescription {
+  type: 'offer' | 'answer';
+  sdp?: string;
+}
+
+export interface IceCandidatePayload {
+  candidate?: string;
+  sdpMid?: string | null;
+  sdpMLineIndex?: number | null;
+  usernameFragment?: string | null;
+}
+
 /** Имена серверных событий. */
 export interface ServerToClientEvents {
   'message:new': (message: Message) => void;
@@ -33,6 +45,12 @@ export interface ServerToClientEvents {
   'chat:members:changed': (payload: { chatId: number }) => void;
   presence: (payload: { userId: number; online: boolean }) => void;
   typing: (payload: { chatId: number; userId: number; isTyping: boolean }) => void;
+  'call:incoming': (payload: { callId: string; chatId: number; fromUserId: number }) => void;
+  'call:accepted': (payload: { callId: string }) => void;
+  'call:offer': (payload: { callId: string; description: SessionDescription }) => void;
+  'call:answer': (payload: { callId: string; description: SessionDescription }) => void;
+  'call:ice': (payload: { callId: string; candidate: IceCandidatePayload }) => void;
+  'call:ended': (payload: { callId: string; reason: string }) => void;
 }
 
 /** Имена клиентских событий. */
@@ -45,6 +63,16 @@ export interface ClientToServerEvents {
   }) => void;
   'message:read': (payload: { chatId: number; upToId: number }) => void;
   typing: (payload: { chatId: number; isTyping: boolean }) => void;
+  'call:invite': (
+    payload: { chatId: number },
+    ack: (res: { callId: string; calleeId: number }) => void,
+  ) => void;
+  'call:accept': (payload: { callId: string }, ack: (res: { ok: true }) => void) => void;
+  'call:reject': (payload: { callId: string }) => void;
+  'call:offer': (payload: { callId: string; description: SessionDescription }) => void;
+  'call:answer': (payload: { callId: string; description: SessionDescription }) => void;
+  'call:ice': (payload: { callId: string; candidate: IceCandidatePayload }) => void;
+  'call:hangup': (payload: { callId: string }) => void;
 }
 
 export type ChatSocket = Socket<ServerToClientEvents, ClientToServerEvents>;

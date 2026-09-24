@@ -16,7 +16,7 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="p-4">
+    <div className="mx-auto w-full max-w-2xl px-4 pt-20 pb-10">
       <h1 className="text-lg font-semibold">Настройки</h1>
       <p className="mt-2 text-sm text-muted-foreground">Пользователь: {user?.username ?? '—'}</p>
       <Link to="/me" className="mt-2 inline-block text-sm text-primary hover:underline">

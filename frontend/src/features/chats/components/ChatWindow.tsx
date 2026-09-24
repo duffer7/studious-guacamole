@@ -13,7 +13,10 @@ import {
   MessageScrollerViewport,
   useMessageScroller,
 } from '@/components/ui/message-scroller';
-import { SendIcon } from 'lucide-react';
+import { ArrowLeftIcon, SendIcon, VideoIcon } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useCall } from '@features/calls/CallProvider';
+import { chatAvatarUser } from '@features/chats/components/ChatList';
 import { useMessages } from '@features/chats/hooks/useMessages';
 import { useSendMessage } from '@features/chats/hooks/useSendMessage';
 import { useMarkRead } from '@features/chats/hooks/useMarkRead';
@@ -24,9 +27,13 @@ import { chatDisplayName } from '@features/chats/components/ChatList';
 interface ChatWindowProps {
   chat: ChatSummary;
   currentUserId: number;
+  onBack?: () => void;
 }
 
-export function ChatWindow({ chat, currentUserId }: ChatWindowProps) {
+export function ChatWindow({ chat, currentUserId, onBack }: ChatWindowProps) {
+  const call = useCall();
+  const peer = chatAvatarUser(chat, currentUserId);
+  const initials = (peer?.displayName || peer?.username || '?').slice(0, 2).toUpperCase();
   // сообщения считаем прочитанными, только если пользователь реально смотрит на чат:
   // вкладка активна ИЛИ поле ввода в фокусе (например, во время печати)
   const [inputFocused, setInputFocused] = useState(false);
@@ -52,8 +59,33 @@ export function ChatWindow({ chat, currentUserId }: ChatWindowProps) {
   return (
     <MessageScrollerProvider autoScroll defaultScrollPosition="end">
       <div className="flex h-full min-h-0 flex-col">
-        <header className="flex items-center gap-2 border-b border-border px-4 py-3">
-          <h2 className="text-base font-medium">{chatDisplayName(chat, currentUserId)}</h2>
+        <header className="flex items-center gap-3 border-b border-border/70 px-3 py-2.5">
+          {onBack && (
+            <Button variant="ghost" size="icon" className="md:hidden" onClick={onBack} aria-label="К списку чатов">
+              <ArrowLeftIcon />
+            </Button>
+          )}
+          <Avatar className="size-9">
+            {peer?.avatarUrl && <AvatarImage src={peer.avatarUrl} />}
+            <AvatarFallback>{initials}</AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-sm font-semibold">{chatDisplayName(chat, currentUserId)}</h2>
+            <p className="text-xs text-muted-foreground">
+              {chat.type === 'direct' ? 'Личный чат' : 'Группа'}
+            </p>
+          </div>
+          {chat.type === 'direct' && peer && (
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Видеозвонок"
+              disabled={call.phase !== 'idle'}
+              onClick={() => call.startCall(chat, peer)}
+            >
+              <VideoIcon />
+            </Button>
+          )}
         </header>
 
         <MessageList
@@ -207,7 +239,7 @@ function MessageComposer({ chat, currentUserId, onFocusChange }: MessageComposer
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex items-center gap-2 border-t border-border p-3">
+    <form onSubmit={handleSubmit} className="flex items-center gap-2 border-t border-border/70 p-3">
       <Input
         ref={inputRef}
         value={text}

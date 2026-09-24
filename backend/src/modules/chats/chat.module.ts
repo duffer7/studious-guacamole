@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
-import { ChatsController } from '@modules/chats/dto/chats.controller';
+import { ChatsController } from '@modules/chats/controllers/chats.controller';
 import { ChatsService } from '@modules/chats/services/chats.service';
 import { ChatsGateway } from '@modules/chats/gateways/chats.gateway';
 import { ChatsRepository } from '@modules/chats/repositories/chats.repository';
 import { ChatMembersRepository } from '@modules/chats/repositories/chat-members.repository';
 import { MessagesRepository } from '@modules/chats/repositories/messages.repository';
 import { PresenceService } from '@modules/chats/services/presence.service';
+import { CallsService } from '@modules/chats/services/calls.service';
 
 @Module({
   controllers: [ChatsController],
@@ -13,6 +14,7 @@ import { PresenceService } from '@modules/chats/services/presence.service';
     ChatsService,
     ChatsGateway,
     PresenceService,
+    CallsService,
     ChatsRepository,
     ChatMembersRepository,
     MessagesRepository,
