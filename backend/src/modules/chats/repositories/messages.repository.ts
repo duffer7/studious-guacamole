@@ -1,7 +1,7 @@
 import { type Database, DB } from '@db/db.provider';
 import { MessageRow, messages, NewMessageRow } from '@db/schema';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, count, desc, eq, gt, isNull, lt, ne } from 'drizzle-orm';
+import { and, count, desc, eq, gt, isNull, like, lt, ne } from 'drizzle-orm';
 
 @Injectable()
 export class MessagesRepository {
@@ -43,6 +43,12 @@ export class MessagesRepository {
   findByClientId(senderId: number, clientMessageId: string): Promise<MessageRow | undefined> {
     return this.db.query.messages.findFirst({
       where: and(eq(messages.senderId, senderId), eq(messages.clientMessageId, clientMessageId)),
+    });
+  }
+
+  findAttachment(chatId: number, file: string): Promise<MessageRow | undefined> {
+    return this.db.query.messages.findFirst({
+      where: and(eq(messages.chatId, chatId), like(messages.attachmentKey, `%/${file}`)),
     });
   }
 

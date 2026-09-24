@@ -21,6 +21,7 @@ import { PlusIcon } from 'lucide-react';
 import { useUserSearch } from '@features/chats/hooks/useUserSearch';
 import { useCreateDirectChat } from '@features/chats/hooks/useCreateChat';
 import type { PublicUser } from '@features/chats/types';
+import { mediaUrl } from '@/lib/mediaUrl';
 
 interface NewChatDialogProps {
   onCreated: (chatId: number) => void;
@@ -91,7 +92,7 @@ export function NewChatDialog({ onCreated }: NewChatDialogProps) {
                 {(user: PublicUser) => (
                   <ComboboxItem key={user.id} value={user} className="gap-2">
                     <Avatar className="size-6">
-                      {user.avatarUrl && <AvatarImage src={user.avatarUrl} />}
+                      {user.avatarUrl && <AvatarImage src={mediaUrl(user.avatarUrl)} />}
                       <AvatarFallback className="text-xs">{initialsOf(user)}</AvatarFallback>
                     </Avatar>
                     <span>{userLabel(user)}</span>

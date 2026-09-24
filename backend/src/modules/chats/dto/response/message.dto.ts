@@ -24,4 +24,16 @@ export class MessageDto {
 
   @ApiProperty({ example: '2026-09-10T11:25:00.000Z' })
   createdAt: string;
+
+  @ApiProperty({ nullable: true })
+  attachmentKey: string | null;
+
+  @ApiProperty({ nullable: true })
+  attachmentName: string | null;
+
+  @ApiProperty({ nullable: true })
+  attachmentMime: string | null;
+
+  @ApiProperty({ nullable: true })
+  attachmentSize: number | null;
 }

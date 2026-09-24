@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,10 +13,12 @@ import {
   MessageScrollerViewport,
   useMessageScroller,
 } from '@/components/ui/message-scroller';
-import { ArrowLeftIcon, SendIcon, VideoIcon } from 'lucide-react';
+import { ArrowLeftIcon, PaperclipIcon, SendIcon, VideoIcon } from 'lucide-react';
+import { uploadAttachment } from '@features/chats/api';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useCall } from '@features/calls/CallProvider';
 import { chatAvatarUser } from '@features/chats/components/ChatList';
+import { mediaUrl } from '@/lib/mediaUrl';
 import { useMessages } from '@features/chats/hooks/useMessages';
 import { useSendMessage } from '@features/chats/hooks/useSendMessage';
 import { useMarkRead } from '@features/chats/hooks/useMarkRead';
@@ -66,7 +68,7 @@ export function ChatWindow({ chat, currentUserId, onBack }: ChatWindowProps) {
             </Button>
           )}
           <Avatar className="size-9">
-            {peer?.avatarUrl && <AvatarImage src={peer.avatarUrl} />}
+            {peer?.avatarUrl && <AvatarImage src={mediaUrl(peer.avatarUrl)} />}
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
@@ -161,7 +163,7 @@ function MessageList({ chat, currentUserId, shouldMarkRead }: MessageListProps) 
   return (
     <MessageScroller className="min-h-0 flex-1">
       <MessageScrollerViewport className="flex flex-col p-4">
-        <MessageScrollerContent className="mt-auto shrink-0 gap-3">
+        <MessageScrollerContent className="mt-auto min-h-0 gap-3">
           {hasNextPage && (
             <div className="flex justify-center pb-2">
               <Button
@@ -224,8 +226,10 @@ interface MessageComposerProps {
 
 function MessageComposer({ chat, currentUserId, onFocusChange }: MessageComposerProps) {
   const [text, setText] = useState('');
+  const [uploading, setUploading] = useState(false);
   const sendMessage = useSendMessage();
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -234,12 +238,46 @@ function MessageComposer({ chat, currentUserId, onFocusChange }: MessageComposer
 
     setText('');
     void sendMessage({ chatId: chat.id, body, senderId: currentUserId });
-    // возвращаем фокус, чтобы можно было печатать дальше без клика
     inputRef.current?.focus();
+  }
+
+  function onFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setUploading(true);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result ?? '');
+      const data = result.slice(result.indexOf(',') + 1);
+      void uploadAttachment(chat.id, { name: file.name, mime: file.type || 'application/octet-stream', data })
+        .then((attachment) =>
+          sendMessage({
+            chatId: chat.id,
+            body: text.trim() || undefined,
+            senderId: currentUserId,
+            attachment,
+          }),
+        )
+        .then(() => setText(''))
+        .finally(() => setUploading(false));
+    };
+    reader.readAsDataURL(file);
   }
 
   return (
     <form onSubmit={handleSubmit} className="flex items-center gap-2 border-t border-border/70 p-3">
+      <input ref={fileRef} type="file" className="hidden" onChange={onFile} />
+      <Button
+        type="button"
+        size="icon"
+        variant="ghost"
+        disabled={uploading}
+        aria-label="Прикрепить файл"
+        onClick={() => fileRef.current?.click()}
+      >
+        <PaperclipIcon />
+      </Button>
       <Input
         ref={inputRef}
         value={text}

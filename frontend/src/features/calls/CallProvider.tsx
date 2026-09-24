@@ -11,6 +11,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { chatKeys } from '@features/chats/queryKeys';
 import { connectSocket, type IceCandidatePayload, type SessionDescription } from '@features/chats/socket';
+import { assertUserMedia, callConstraints } from '@features/media/preferences';
 import type { ChatSummary, PublicUser } from '@features/chats/types';
 
 const ICE: RTCConfiguration = {
@@ -150,7 +151,8 @@ export function CallProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const openMedia = useCallback(async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+    assertUserMedia();
+    const stream = await navigator.mediaDevices.getUserMedia(callConstraints());
     localRef.current = stream;
     setLocalStream(stream);
     return stream;

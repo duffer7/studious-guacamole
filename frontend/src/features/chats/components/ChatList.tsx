@@ -13,6 +13,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from 'cn';
 import type { ChatSummary, PublicUser } from '@features/chats/types';
+import { mediaUrl } from '@/lib/mediaUrl';
 
 interface ChatListProps {
   chats: ChatSummary[];
@@ -100,13 +101,17 @@ export function ChatList({
             >
               <ItemMedia>
                 <Avatar className="size-10">
-                  {peer?.avatarUrl && <AvatarImage src={peer.avatarUrl} />}
+                  {peer?.avatarUrl && <AvatarImage src={mediaUrl(peer.avatarUrl)} />}
                   <AvatarFallback>{initialsOf(peer)}</AvatarFallback>
                 </Avatar>
               </ItemMedia>
               <ItemContent>
                 <ItemTitle>{chatDisplayName(chat, currentUserId)}</ItemTitle>
-                <ItemDescription>{chat.lastMessage?.body ?? 'Нет сообщений'}</ItemDescription>
+                <ItemDescription>
+                  {chat.lastMessage?.body ||
+                    chat.lastMessage?.attachmentName ||
+                    'Нет сообщений'}
+                </ItemDescription>
               </ItemContent>
               {chat.unreadCount > 0 && (
                 <ItemActions>

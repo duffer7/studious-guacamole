@@ -7,9 +7,15 @@ import type { MessageHistory, PendingMessage } from '@features/chats/types';
 
 interface SendArgs {
   chatId: number;
-  body: string;
+  body?: string;
   senderId: number;
   replyToId?: number;
+  attachment?: {
+    key: string;
+    name: string;
+    mime: string;
+    size: number;
+  };
 }
 
 /** Отправляет сообщение через WebSocket с оптимистичным добавлением в кэш. */
@@ -17,7 +23,7 @@ export function useSendMessage() {
   const queryClient = useQueryClient();
 
   return useCallback(
-    async ({ chatId, body, senderId, replyToId }: SendArgs) => {
+    async ({ chatId, body, senderId, replyToId, attachment }: SendArgs) => {
       const socket = await connectSocket();
       const clientMessageId = uuid();
 
@@ -25,12 +31,16 @@ export function useSendMessage() {
         id: -Date.now(),
         chatId,
         senderId,
-        body,
-        type: 'text',
+        body: body ?? null,
+        type: attachment ? 'file' : 'text',
         clientMessageId,
         replyToId: replyToId ?? null,
         createdAt: new Date().toISOString(),
         pending: true,
+        attachmentKey: attachment?.key ?? null,
+        attachmentName: attachment?.name ?? null,
+        attachmentMime: attachment?.mime ?? null,
+        attachmentSize: attachment?.size ?? null,
       };
 
       queryClient.setQueryData<{ pages: MessageHistory[]; pageParams: unknown[] }>(
@@ -45,7 +55,13 @@ export function useSendMessage() {
         },
       );
 
-      socket.emit('message:send', { chatId, body, clientMessageId, replyToId });
+      socket.emit('message:send', {
+        chatId,
+        body: body ?? '',
+        clientMessageId,
+        replyToId,
+        attachment,
+      });
 
       // после ack серверная копия заменит оптимистичную — подстрахуемся инвалидацией списка
       void queryClient.invalidateQueries({ queryKey: chatKeys.list() });

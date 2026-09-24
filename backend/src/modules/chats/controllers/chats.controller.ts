@@ -7,6 +7,7 @@ import {
   Post,
   Query,
   Req,
+  StreamableFile,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -17,6 +18,7 @@ import { GetMessagesDto } from '@modules/chats/dto/request/get-message.dto';
 import { CreateDirectChatDto } from '@modules/chats/dto/request/create-direct-chat.dto';
 import { CreateGroupChatDto } from '@modules/chats/dto/request/create-group-chat.dto';
 import { AddMembersDto } from '@modules/chats/dto/request/add-member.dto';
+import { UploadAttachmentDto } from '@modules/chats/dto/request/upload-attachment.dto';
 
 @ApiTags('chats')
 @ApiBearerAuth()
@@ -75,6 +77,30 @@ export class ChatsController {
     @Body() body: AddMembersDto,
   ) {
     return this.chatsService.addMembers(chatId, req.user.userId, body);
+  }
+
+  @Post(':chatId/files')
+  @ApiOperation({ summary: 'Загрузить вложение в MinIO' })
+  uploadFile(
+    @Req() req: { user: AuthUser },
+    @Param('chatId', ParseIntPipe) chatId: number,
+    @Body() body: UploadAttachmentDto,
+  ) {
+    return this.chatsService.uploadAttachment(req.user.userId, chatId, body);
+  }
+
+  @Get(':chatId/files/:file')
+  @ApiOperation({ summary: 'Скачать вложение, если пользователь в чате' })
+  async downloadFile(
+    @Req() req: { user: AuthUser },
+    @Param('chatId', ParseIntPipe) chatId: number,
+    @Param('file') file: string,
+  ) {
+    const stored = await this.chatsService.readAttachment(req.user.userId, chatId, file);
+    return new StreamableFile(stored.body, {
+      type: stored.contentType,
+      disposition: `inline; filename="${stored.name}"`,
+    });
   }
 
   @Get(':chatId/messages')

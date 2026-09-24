@@ -21,6 +21,10 @@ import { ChatType } from '@modules/chats/types/chat-type.enum';
 import { CreateGroupChatDto } from '@modules/chats/dto/request/create-group-chat.dto';
 import { AddMembersDto } from '@modules/chats/dto/request/add-member.dto';
 import { PublicUserDto } from '@modules/user/dto/public-user.dto';
+import { StorageService } from '@/storage/storage.service';
+import { AttachmentRefDto } from '@modules/chats/dto/request/send-message.dto';
+import { UploadAttachmentDto } from '@modules/chats/dto/request/upload-attachment.dto';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class ChatsService {
@@ -30,6 +34,7 @@ export class ChatsService {
     readonly messagesRepository: MessagesRepository,
     readonly chatsRepository: ChatsRepository,
     readonly chatMembersRepository: ChatMembersRepository,
+    private readonly storage: StorageService,
   ) {}
 
   async getChatIdsByMemberId(userId: number): Promise<number[] | undefined> {
@@ -171,12 +176,21 @@ export class ChatsService {
       return existingDto;
     }
 
+    const attachment = this.checkedAttachment(senderId, dto.chatId, dto.attachment);
+    const body = dto.body?.trim() || null;
+    if (!body && !attachment) throw new WsException('empty message');
+
     const message = await this.messagesRepository.createOne({
       chatId: dto.chatId,
       senderId,
-      body: dto.body,
+      body,
+      type: attachment ? 'file' : 'text',
       clientMessageId: dto.clientMessageId,
       replyToId: dto.replyToId,
+      attachmentKey: attachment?.key,
+      attachmentName: attachment?.name,
+      attachmentMime: attachment?.mime,
+      attachmentSize: attachment?.size,
     });
 
     const messageDto = this.toMessageDto(message);
@@ -207,7 +221,50 @@ export class ChatsService {
       clientMessageId: m.clientMessageId,
       replyToId: m.replyToId,
       createdAt: m.createdAt.toISOString(),
+      attachmentKey: m.attachmentKey,
+      attachmentName: m.attachmentName,
+      attachmentMime: m.attachmentMime,
+      attachmentSize: m.attachmentSize,
     };
+  }
+
+  async uploadAttachment(userId: number, chatId: number, dto: UploadAttachmentDto) {
+    const member = await this.chatMembersRepository.findByUserIdAndChatId(chatId, userId);
+    if (!member) throw new ForbiddenException('forbidden');
+
+    const mime = ALLOWED_MIME[dto.mime];
+    if (!mime) throw new BadRequestException('unsupported file type');
+
+    const buffer = Buffer.from(dto.data, 'base64');
+    if (buffer.length === 0 || buffer.length > 8_000_000) {
+      throw new BadRequestException('file is empty or too large');
+    }
+
+    const safeName = dto.name.replace(/[^\w.\- ()]/g, '_').slice(0, 120);
+    const file = `${randomUUID()}.${mime.ext}`;
+    const key = `attachments/${chatId}/${file}`;
+    await this.storage.put(key, buffer, dto.mime);
+
+    return { key, name: safeName, mime: dto.mime, size: buffer.length };
+  }
+
+  async readAttachment(userId: number, chatId: number, file: string) {
+    const member = await this.chatMembersRepository.findByUserIdAndChatId(chatId, userId);
+    if (!member) throw new ForbiddenException('forbidden');
+    if (!/^[\w-]+\.[a-z0-9]+$/.test(file)) throw new NotFoundException('file not found');
+
+    const stored = await this.storage.read(`attachments/${chatId}/${file}`);
+    const found = await this.messagesRepository.findAttachment(chatId, file);
+    return { ...stored, name: found?.attachmentName ?? file };
+  }
+
+  private checkedAttachment(_userId: number, chatId: number, attachment?: AttachmentRefDto) {
+    if (!attachment) return undefined;
+    const key = `attachments/${chatId}/`;
+    if (!attachment.key.startsWith(key) || attachment.key.includes('..')) {
+      throw new WsException('bad attachment');
+    }
+    return attachment;
   }
 
   private toPublicUser(user: {
@@ -309,3 +366,16 @@ export class ChatsService {
     };
   }
 }
+
+const ALLOWED_MIME: Record<string, { ext: string }> = {
+  'image/jpeg': { ext: 'jpg' },
+  'image/png': { ext: 'png' },
+  'image/webp': { ext: 'webp' },
+  'image/gif': { ext: 'gif' },
+  'application/pdf': { ext: 'pdf' },
+  'text/plain': { ext: 'txt' },
+  'audio/mpeg': { ext: 'mp3' },
+  'audio/webm': { ext: 'weba' },
+  'video/mp4': { ext: 'mp4' },
+  'video/webm': { ext: 'webm' },
+};

@@ -12,11 +12,18 @@ services:
       - NODE_ENV=development
       - DATABASE_URL=postgres://postgres:postgres@db:5432/messenger
       - REDIS_URL=redis://redis:6379
+      - S3_ENDPOINT=http://minio:9000
+      - S3_ACCESS_KEY=minio
+      - S3_SECRET_KEY=minio12345
+      - S3_BUCKET=messenger
+      - S3_REGION=us-east-1
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+      minio:
+        condition: service_started
     healthcheck:
       test:
         [
@@ -59,6 +66,23 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
 
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    command: server /data --console-address ":9001"
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio12345
+      # Локальный Docker часто показывает мало свободного места, и MinIO
+      # отклоняет запись, хотя аватар весит десятки килобайт.
+      MINIO_MIN_FREE_DISK: 1MiB
+      MINIO_DISK_WATERMARK_LOW: "98"
+      MINIO_DISK_WATERMARK_HIGH: "99"
+    volumes:
+      - minio_data:/data
+
   redis:
     image: redis:7
     ports:
@@ -74,3 +98,4 @@ services:
 
 volumes:
   db_data:
+  minio_data:

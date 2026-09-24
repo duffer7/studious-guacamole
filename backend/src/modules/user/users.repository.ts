@@ -52,6 +52,18 @@ export class UsersRepository {
     return created;
   }
 
+  async updateProfile(
+    userId: number,
+    patch: { displayName?: string | null; avatarUrl?: string | null },
+  ): Promise<UserRow | undefined> {
+    const [updated] = await this.db
+      .update(users)
+      .set(patch)
+      .where(eq(users.id, userId))
+      .returning();
+    return updated;
+  }
+
   async updateMfa(userId: number, mfaEnabled: boolean, mfaSecret: string | null): Promise<UserRow> {
     const [updated] = await this.db
       .update(users)

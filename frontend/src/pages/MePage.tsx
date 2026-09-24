@@ -1,9 +1,15 @@
-import type * as React from 'react';
-import { useAppSelector } from '@/store/hooks';
+import { useRef, useState, type ReactNode } from 'react';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@ui/card';
 import { Separator } from '@ui/separator';
+import { Button } from '@ui/button';
+import { Input } from '@ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@components/ui/avatar';
-import { selectUser } from '@features/auth/auth.slice';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@components/ui/dialog';
+import { selectUser, setUser } from '@features/auth/auth.slice';
+import { AvatarEditor } from '@features/profile/AvatarEditor';
+import { deleteAvatar, updateProfile, uploadAvatar } from '@features/profile/api';
+import { mediaUrl } from '@/lib/mediaUrl';
 
 function formatDate(value: Date | string | null | undefined): string {
   if (!value) {
@@ -22,7 +28,7 @@ function formatDate(value: Date | string | null | undefined): string {
 }
 
 /** Строка "ключ — значение" для карточки профиля. */
-function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
+function InfoRow({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4 py-2">
       <span className="text-sm text-muted-foreground">{label}</span>
@@ -32,7 +38,13 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export function MePage() {
+  const dispatch = useAppDispatch();
   const user = useAppSelector(selectUser);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [name, setName] = useState(user?.displayName ?? '');
+  const [file, setFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!user) {
     return (
@@ -49,21 +61,104 @@ export function MePage() {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-4">
-            <Avatar size="lg">
-              {user.avatarUrl ? <AvatarImage src={user.avatarUrl} alt={user.username} /> : null}
-              <AvatarFallback>{initials}</AvatarFallback>
-            </Avatar>
-            <div className="min-w-0">
+            <button type="button" className="rounded-full" onClick={() => fileRef.current?.click()}>
+              <Avatar size="lg">
+                {user.avatarUrl ? (
+                  <AvatarImage src={mediaUrl(user.avatarUrl)} alt={user.username} />
+                ) : null}
+                <AvatarFallback>{initials}</AvatarFallback>
+              </Avatar>
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(event) => {
+                const next = event.target.files?.[0];
+                if (next) setFile(next);
+                event.target.value = '';
+              }}
+            />
+            <div className="min-w-0 flex-1">
               <CardTitle className="truncate">{user.displayName ?? user.username}</CardTitle>
               <CardDescription className="truncate">@{user.username}</CardDescription>
+              <div className="mt-2 flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()}>
+                  Сменить фото
+                </Button>
+                {user.avatarUrl && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={saving}
+                    onClick={() => {
+                      setSaving(true);
+                      setError(null);
+                      void deleteAvatar()
+                        .then((next) => dispatch(setUser({ ...user, avatarUrl: next.avatarUrl })))
+                        .catch(() => setError('Не удалось удалить аватар'))
+                        .finally(() => setSaving(false));
+                    }}
+                  >
+                    Удалить
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </CardHeader>
 
+        <Dialog open={file !== null} onOpenChange={(open) => !open && setFile(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Кадрирование аватара</DialogTitle>
+            </DialogHeader>
+            {file && (
+              <AvatarEditor
+                file={file}
+                saving={saving}
+                onCancel={() => setFile(null)}
+                onSave={(image) => {
+                  setSaving(true);
+                  setError(null);
+                  void uploadAvatar(image)
+                    .then((next) => {
+                      dispatch(setUser({ ...user, avatarUrl: next.avatarUrl }));
+                      setFile(null);
+                    })
+                    .catch(() => setError('Не удалось загрузить аватар'))
+                    .finally(() => setSaving(false));
+                }}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+
         <CardContent>
           <Separator />
           <div className="divide-y">
-            <InfoRow label="Имя" value={user.displayName ?? '—'} />
+            <div className="flex items-center justify-between gap-4 py-2">
+              <span className="text-sm text-muted-foreground">Имя</span>
+              <form
+                className="flex items-center gap-2"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  setSaving(true);
+                  setError(null);
+                  void updateProfile(name)
+                    .then((next) => dispatch(setUser({ ...user, displayName: next.displayName })))
+                    .catch(() => setError('Не удалось сохранить имя'))
+                    .finally(() => setSaving(false));
+                }}
+              >
+                <Input value={name} onChange={(event) => setName(event.target.value)} maxLength={80} />
+                <Button type="submit" size="sm" disabled={saving}>
+                  Сохранить
+                </Button>
+              </form>
+            </div>
+            {error && <p className="py-1 text-sm text-destructive">{error}</p>}
             <InfoRow label="Логин" value={user.username} />
             <InfoRow label="Email" value={user.email} />
             <InfoRow

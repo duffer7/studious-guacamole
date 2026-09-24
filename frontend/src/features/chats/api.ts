@@ -35,6 +35,21 @@ export function getMembers(chatId: number): Promise<PublicUser[]> {
   return request<PublicUser[]>(`/chats/${chatId}/members`);
 }
 
+export interface UploadedAttachment {
+  key: string;
+  name: string;
+  mime: string;
+  size: number;
+}
+
+/** POST /chats/:id/files — загрузить вложение в MinIO. */
+export function uploadAttachment(
+  chatId: number,
+  file: { name: string; mime: string; data: string },
+): Promise<UploadedAttachment> {
+  return request<UploadedAttachment>(`/chats/${chatId}/files`, { method: 'POST', body: file });
+}
+
 /** POST /chats/direct — создать личный чат. */
 export function createDirectChat(dto: CreateDirectChatDto): Promise<ChatSummary> {
   return request<ChatSummary>('/chats/direct', { method: 'POST', body: dto });

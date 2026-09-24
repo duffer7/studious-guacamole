@@ -57,9 +57,10 @@ export interface ServerToClientEvents {
 export interface ClientToServerEvents {
   'message:send': (payload: {
     chatId: number;
-    body: string;
+    body?: string;
     clientMessageId: string;
     replyToId?: number;
+    attachment?: { key: string; name: string; mime: string; size: number };
   }) => void;
   'message:read': (payload: { chatId: number; upToId: number }) => void;
   typing: (payload: { chatId: number; isTyping: boolean }) => void;

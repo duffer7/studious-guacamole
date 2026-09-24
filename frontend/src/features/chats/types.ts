@@ -18,6 +18,10 @@ export interface Message {
   clientMessageId: string;
   replyToId: number | null;
   createdAt: string;
+  attachmentKey?: string | null;
+  attachmentName?: string | null;
+  attachmentMime?: string | null;
+  attachmentSize?: number | null;
 }
 
 /** Сводка чата (совпадает с backend ChatSummaryDto). */
