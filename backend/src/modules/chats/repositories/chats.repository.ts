@@ -35,4 +35,17 @@ export class ChatsRepository {
 
     return created;
   }
+
+  async updateTitle(chatId: number, title: string): Promise<ChatRow> {
+    const [updated] = await this.db
+      .update(chats)
+      .set({ title })
+      .where(eq(chats.id, chatId))
+      .returning();
+    return updated;
+  }
+
+  async deleteOne(chatId: number): Promise<void> {
+    await this.db.delete(chats).where(eq(chats.id, chatId));
+  }
 }

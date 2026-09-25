@@ -20,7 +20,12 @@ import { CreateDirectChatDto } from '@modules/chats/dto/request/create-direct-ch
 import { ChatType } from '@modules/chats/types/chat-type.enum';
 import { CreateGroupChatDto } from '@modules/chats/dto/request/create-group-chat.dto';
 import { AddMembersDto } from '@modules/chats/dto/request/add-member.dto';
+import { UpdateChatDto } from '@modules/chats/dto/request/update-chat.dto';
+import { ChatMemberDto } from '@modules/chats/dto/response/chat-member.dto';
+import { ChatRole, canManageMembers } from '@modules/chats/types/chat-role.enum';
 import { PublicUserDto } from '@modules/user/dto/public-user.dto';
+import { UsersService } from '@modules/user/users.service';
+import { PresenceService } from '@modules/chats/services/presence.service';
 import { StorageService } from '@/storage/storage.service';
 import { AttachmentRefDto } from '@modules/chats/dto/request/send-message.dto';
 import { UploadAttachmentDto } from '@modules/chats/dto/request/upload-attachment.dto';
@@ -35,6 +40,8 @@ export class ChatsService {
     readonly chatsRepository: ChatsRepository,
     readonly chatMembersRepository: ChatMembersRepository,
     private readonly storage: StorageService,
+    private readonly usersService: UsersService,
+    private readonly presenceService: PresenceService,
   ) {}
 
   async getChatIdsByMemberId(userId: number): Promise<number[] | undefined> {
@@ -82,10 +89,19 @@ export class ChatsService {
   }
 
   async createGroupChat(userId: number, body: CreateGroupChatDto): Promise<NewChatRow> {
-    const { targetUserIds, title } = body;
+    const title = body.title.trim();
+    if (!title) {
+      throw new BadRequestException('title is required');
+    }
+
+    const targetUserIds = [...new Set(body.targetUserIds.filter((id) => id !== userId))];
+    if (targetUserIds.length === 0) {
+      throw new BadRequestException('add at least one other user');
+    }
+    await this.assertUsersExist(targetUserIds);
 
     // создатель + уникальные участники, без дублей
-    const memberIds = [...new Set([userId, ...targetUserIds])];
+    const memberIds = [userId, ...targetUserIds];
 
     const createdChat = await this.chatsRepository.transaction(async (tx) => {
       const chat = await this.chatsRepository.createOne(
@@ -97,7 +113,7 @@ export class ChatsService {
         memberIds.map((id) => ({
           chatId: chat.id,
           userId: id,
-          role: id === userId ? 'owner' : 'member',
+          role: id === userId ? ChatRole.owner : ChatRole.member,
         })),
         tx,
       );
@@ -111,41 +127,92 @@ export class ChatsService {
     return createdChat;
   }
 
-  async addMembers(
-    chatId: number,
-    actorId: number,
-    dto: AddMembersDto,
-  ): Promise<NewChatMemberRow[]> {
-    const chat = await this.chatsRepository.findOneById(chatId);
-    if (!chat) {
-      throw new NotFoundException('chat not found');
-    }
-
-    const actor = await this.chatMembersRepository.findByUserIdAndChatId(chatId, actorId);
-    if (!actor) {
+  async addMembers(chatId: number, actorId: number, dto: AddMembersDto): Promise<ChatMemberDto[]> {
+    const chat = await this.requireGroupChat(chatId);
+    const actor = await this.requireMember(chatId, actorId);
+    if (!canManageMembers(actor.role)) {
       throw new ForbiddenException('forbidden');
     }
 
-    if (chat.type === ChatType.direct) {
-      throw new BadRequestException('cannot add members to a direct chat');
-    }
-
-    const { targetUserIds } = dto;
+    const targetUserIds = [...new Set(dto.targetUserIds.filter((id) => id !== actorId))];
+    await this.assertUsersExist(targetUserIds);
     const existing = await this.chatMembersRepository.findExistingUserIds(chatId, targetUserIds);
 
     const toAdd: NewChatMemberRow[] = targetUserIds
       .filter((id) => !existing.includes(id))
-      .map((id) => ({ chatId, userId: id }));
+      .map((id) => ({ chatId, userId: id, role: ChatRole.member }));
 
     if (toAdd.length === 0) return [];
 
-    const created = await this.chatMembersRepository.createMany(toAdd);
+    await this.chatMembersRepository.createMany(toAdd);
     await this.chatsGateway.notifyMembersAdded(
       chatId,
       toAdd.map((m) => m.userId),
     );
 
-    return created;
+    const addedIds = new Set(toAdd.map((m) => m.userId));
+    const members = await this.chatMembersRepository.findMembersWithUsers(chat.id);
+    return this.toChatMembers(members.filter((m) => addedIds.has(m.user.id)));
+  }
+
+  async removeMember(chatId: number, actorId: number, targetUserId: number): Promise<void> {
+    await this.requireGroupChat(chatId);
+    const actor = await this.requireMember(chatId, actorId);
+    if (!canManageMembers(actor.role)) {
+      throw new ForbiddenException('forbidden');
+    }
+    if (actorId === targetUserId) {
+      throw new BadRequestException('use leave to remove yourself');
+    }
+
+    const target = await this.chatMembersRepository.findByUserIdAndChatId(chatId, targetUserId);
+    if (!target) {
+      throw new NotFoundException('member not found');
+    }
+    if (target.role === ChatRole.owner) {
+      throw new BadRequestException('cannot remove owner');
+    }
+
+    await this.chatMembersRepository.deleteMember(chatId, targetUserId);
+    await this.chatsGateway.notifyMemberRemoved(chatId, targetUserId);
+  }
+
+  async leaveChat(chatId: number, userId: number): Promise<void> {
+    await this.requireGroupChat(chatId);
+    const membership = await this.requireMember(chatId, userId);
+
+    if (membership.role === ChatRole.owner) {
+      const successor = await this.chatMembersRepository.findEarliestOther(chatId, userId);
+      if (successor) {
+        await this.chatMembersRepository.updateRole(chatId, successor.userId, ChatRole.owner);
+      }
+    }
+
+    await this.chatMembersRepository.deleteMember(chatId, userId);
+    const remaining = await this.chatMembersRepository.countMembers(chatId);
+    if (remaining === 0) {
+      await this.chatsRepository.deleteOne(chatId);
+    }
+    await this.chatsGateway.notifyMemberRemoved(chatId, userId);
+  }
+
+  async updateChat(chatId: number, actorId: number, dto: UpdateChatDto): Promise<ChatSummaryDto> {
+    await this.requireGroupChat(chatId);
+    const actor = await this.requireMember(chatId, actorId);
+    if (!canManageMembers(actor.role)) {
+      throw new ForbiddenException('forbidden');
+    }
+
+    const title = dto.title.trim();
+    if (!title) {
+      throw new BadRequestException('title is required');
+    }
+
+    await this.chatsRepository.updateTitle(chatId, title);
+    const summary = await this.getChat(actorId, chatId);
+    const userIds = await this.chatMembersRepository.findUserIds(chatId);
+    await this.chatsGateway.notifyChatUpdated(chatId, summary, userIds);
+    return summary;
   }
 
   async markRead(
@@ -272,8 +339,58 @@ export class ChatsService {
     username: string;
     displayName: string | null;
     avatarUrl: string | null;
+    lastSeenAt?: Date | string | null;
   }): PublicUserDto {
     return new PublicUserDto(user);
+  }
+
+  private async toChatMembers(
+    members: {
+      role: string;
+      joinedAt: Date;
+      user: {
+        id: number;
+        username: string;
+        displayName: string | null;
+        avatarUrl: string | null;
+        lastSeenAt?: Date | string | null;
+      };
+    }[],
+  ): Promise<ChatMemberDto[]> {
+    const presence = await this.presenceService.isOnlineMany(members.map((member) => member.user.id));
+    return members.map((member) => ({
+      ...this.toPublicUser(member.user),
+      role: member.role as ChatRole,
+      joinedAt: member.joinedAt.toISOString(),
+      online: presence.get(member.user.id) ?? null,
+    }));
+  }
+
+  private async requireMember(chatId: number, userId: number): Promise<ChatMemberRow> {
+    const membership = await this.chatMembersRepository.findByUserIdAndChatId(chatId, userId);
+    if (!membership) {
+      throw new ForbiddenException('forbidden');
+    }
+    return membership;
+  }
+
+  private async requireGroupChat(chatId: number) {
+    const chat = await this.chatsRepository.findOneById(chatId);
+    if (!chat) {
+      throw new NotFoundException('chat not found');
+    }
+    if (chat.type === ChatType.direct) {
+      throw new BadRequestException('not a group chat');
+    }
+    return chat;
+  }
+
+  private async assertUsersExist(userIds: number[]): Promise<void> {
+    if (userIds.length === 0) return;
+    const found = await this.usersService.findByIds(userIds);
+    if (found.length !== userIds.length) {
+      throw new BadRequestException('unknown user');
+    }
   }
 
   async listChats(userId: number): Promise<ChatSummaryDto[]> {
@@ -295,8 +412,11 @@ export class ChatsService {
         type: chat.type,
         title: chat.title,
         unreadCount,
+        lastReadMessageId: membership.lastReadMessageId,
         lastMessage: lastMessage ? this.toMessageDto(lastMessage) : null,
-        members: members.map((m) => this.toPublicUser(m.user)),
+        members: await this.toChatMembers(members),
+        memberCount: members.length,
+        myRole: membership.role as ChatRole,
       });
     }
 
@@ -334,19 +454,18 @@ export class ChatsService {
       type: chat.type,
       title: chat.title,
       unreadCount,
+      lastReadMessageId: membership.lastReadMessageId,
       lastMessage: lastMessage ? this.toMessageDto(lastMessage) : null,
-      members: members.map((m) => this.toPublicUser(m.user)),
+      members: await this.toChatMembers(members),
+      memberCount: members.length,
+      myRole: membership.role as ChatRole,
     };
   }
 
-  async getMembers(userId: number, chatId: number): Promise<PublicUserDto[]> {
-    const membership = await this.chatMembersRepository.findByUserIdAndChatId(chatId, userId);
-    if (!membership) {
-      throw new ForbiddenException('forbidden');
-    }
-
+  async getMembers(userId: number, chatId: number): Promise<ChatMemberDto[]> {
+    await this.requireMember(chatId, userId);
     const members = await this.chatMembersRepository.findMembersWithUsers(chatId);
-    return members.map((m) => this.toPublicUser(m.user));
+    return this.toChatMembers(members);
   }
 
   async getHistory(userId: number, chatId: number, before: number | undefined, limit: number) {

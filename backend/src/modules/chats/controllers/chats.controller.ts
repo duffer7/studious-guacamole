@@ -1,9 +1,12 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Query,
   Req,
@@ -18,6 +21,7 @@ import { GetMessagesDto } from '@modules/chats/dto/request/get-message.dto';
 import { CreateDirectChatDto } from '@modules/chats/dto/request/create-direct-chat.dto';
 import { CreateGroupChatDto } from '@modules/chats/dto/request/create-group-chat.dto';
 import { AddMembersDto } from '@modules/chats/dto/request/add-member.dto';
+import { UpdateChatDto } from '@modules/chats/dto/request/update-chat.dto';
 import { UploadAttachmentDto } from '@modules/chats/dto/request/upload-attachment.dto';
 
 @ApiTags('chats')
@@ -77,6 +81,34 @@ export class ChatsController {
     @Body() body: AddMembersDto,
   ) {
     return this.chatsService.addMembers(chatId, req.user.userId, body);
+  }
+
+  @Patch(':chatId')
+  @ApiOperation({ summary: 'Переименовать групповой чат' })
+  update(
+    @Req() req: { user: AuthUser },
+    @Param('chatId', ParseIntPipe) chatId: number,
+    @Body() body: UpdateChatDto,
+  ) {
+    return this.chatsService.updateChat(chatId, req.user.userId, body);
+  }
+
+  @Delete(':chatId/members/:userId')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Удалить участника из группового чата' })
+  removeMember(
+    @Req() req: { user: AuthUser },
+    @Param('chatId', ParseIntPipe) chatId: number,
+    @Param('userId', ParseIntPipe) userId: number,
+  ) {
+    return this.chatsService.removeMember(chatId, req.user.userId, userId);
+  }
+
+  @Post(':chatId/leave')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Выйти из группового чата' })
+  leave(@Req() req: { user: AuthUser }, @Param('chatId', ParseIntPipe) chatId: number) {
+    return this.chatsService.leaveChat(chatId, req.user.userId);
   }
 
   @Post(':chatId/files')

@@ -22,6 +22,9 @@ export class ResponseUserDto {
   @ApiProperty({ example: '2026-09-10T11:25:00.000Z' })
   createdAt: string;
 
+  @ApiProperty({ example: '2026-09-10T11:25:00.000Z', nullable: true })
+  lastSeenAt: string | null;
+
   constructor(row: PublicUser) {
     this.id = row.id;
     this.username = row.username;
@@ -29,5 +32,6 @@ export class ResponseUserDto {
     this.displayName = row.displayName;
     this.avatarUrl = row.avatarUrl;
     this.createdAt = row.createdAt.toISOString();
+    this.lastSeenAt = row.lastSeenAt ? row.lastSeenAt.toISOString() : null;
   }
 }

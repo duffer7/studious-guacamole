@@ -1,10 +1,13 @@
 import { request } from '@/api/client';
 import type {
+  AddMembersDto,
+  ChatMember,
   ChatSummary,
   CreateDirectChatDto,
   CreateGroupChatDto,
   MessageHistory,
   PublicUser,
+  UpdateChatDto,
 } from '@features/chats/types';
 
 /** GET /chats — список чатов текущего пользователя. */
@@ -31,8 +34,28 @@ export function getHistory(
 }
 
 /** GET /chats/:id/members — участники чата. */
-export function getMembers(chatId: number): Promise<PublicUser[]> {
-  return request<PublicUser[]>(`/chats/${chatId}/members`);
+export function getMembers(chatId: number): Promise<ChatMember[]> {
+  return request<ChatMember[]>(`/chats/${chatId}/members`);
+}
+
+/** POST /chats/:id/members — добавить участников. */
+export function addMembers(chatId: number, dto: AddMembersDto): Promise<ChatMember[]> {
+  return request<ChatMember[]>(`/chats/${chatId}/members`, { method: 'POST', body: dto });
+}
+
+/** DELETE /chats/:id/members/:userId — удалить участника. */
+export function removeMember(chatId: number, userId: number): Promise<void> {
+  return request<void>(`/chats/${chatId}/members/${userId}`, { method: 'DELETE' });
+}
+
+/** POST /chats/:id/leave — выйти из группы. */
+export function leaveChat(chatId: number): Promise<void> {
+  return request<void>(`/chats/${chatId}/leave`, { method: 'POST' });
+}
+
+/** PATCH /chats/:id — переименовать группу. */
+export function updateChat(chatId: number, dto: UpdateChatDto): Promise<ChatSummary> {
+  return request<ChatSummary>(`/chats/${chatId}`, { method: 'PATCH', body: dto });
 }
 
 export interface UploadedAttachment {

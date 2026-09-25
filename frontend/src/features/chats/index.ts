@@ -1,4 +1,6 @@
 export type {
+  ChatMember,
+  ChatRole,
   ChatSummary,
   ChatType,
   Message,
@@ -13,6 +15,16 @@ export { useChats } from '@features/chats/hooks/useChats';
 export { useMessages } from '@features/chats/hooks/useMessages';
 export { useSendMessage } from '@features/chats/hooks/useSendMessage';
 export { useMarkRead } from '@features/chats/hooks/useMarkRead';
+export {
+  useCreateDirectChat,
+  useCreateGroupChat,
+} from '@features/chats/hooks/useCreateChat';
+export {
+  useAddMembers,
+  useLeaveChat,
+  useRemoveMember,
+  useUpdateChat,
+} from '@features/chats/hooks/useChatMembers';
 export {
   connectSocket,
   disconnectSocket,

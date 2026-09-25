@@ -9,7 +9,7 @@ import {
 } from '@db/schema';
 import type { Executor } from '@modules/chats/repositories/chats.repository';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, ne } from 'drizzle-orm';
 
 @Injectable()
 export class ChatMembersRepository {
@@ -80,6 +80,49 @@ export class ChatMembersRepository {
       .where(eq(chatMembers.chatId, chatId));
 
     return rows.map((r) => r.userId);
+  }
+
+  async deleteMember(chatId: number, userId: number): Promise<void> {
+    await this.db
+      .delete(chatMembers)
+      .where(and(eq(chatMembers.chatId, chatId), eq(chatMembers.userId, userId)));
+  }
+
+  async countMembers(chatId: number): Promise<number> {
+    const [row] = await this.db
+      .select({ value: count() })
+      .from(chatMembers)
+      .where(eq(chatMembers.chatId, chatId));
+    return Number(row?.value ?? 0);
+  }
+
+  findOwner(chatId: number): Promise<ChatMemberRow | undefined> {
+    return this.db.query.chatMembers.findFirst({
+      where: and(eq(chatMembers.chatId, chatId), eq(chatMembers.role, 'owner')),
+    });
+  }
+
+  /** Самый ранний участник, кроме указанного — кандидат на передачу owner. */
+  async findEarliestOther(
+    chatId: number,
+    excludeUserId: number,
+  ): Promise<ChatMemberRow | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(chatMembers)
+      .where(and(eq(chatMembers.chatId, chatId), ne(chatMembers.userId, excludeUserId)))
+      .orderBy(asc(chatMembers.joinedAt), asc(chatMembers.userId))
+      .limit(1);
+    return row;
+  }
+
+  async updateRole(chatId: number, userId: number, role: string): Promise<ChatMemberRow> {
+    const [updated] = await this.db
+      .update(chatMembers)
+      .set({ role })
+      .where(and(eq(chatMembers.chatId, chatId), eq(chatMembers.userId, userId)))
+      .returning();
+    return updated;
   }
 
   async updateLastReadMessageId(

@@ -6,6 +6,7 @@ export interface PublicUserSource {
   username: string;
   displayName: string | null;
   avatarUrl: string | null;
+  lastSeenAt?: Date | string | null;
 }
 
 /**
@@ -25,10 +26,14 @@ export class PublicUserDto {
   @ApiProperty({ example: 'https://example.com/avatar.png', nullable: true })
   avatarUrl: string | null;
 
+  @ApiProperty({ example: '2026-09-10T11:25:00.000Z', nullable: true })
+  lastSeenAt: string | null;
+
   constructor(row: PublicUserSource) {
     this.id = row.id;
     this.username = row.username;
     this.displayName = row.displayName;
     this.avatarUrl = row.avatarUrl;
+    this.lastSeenAt = row.lastSeenAt ? new Date(row.lastSeenAt).toISOString() : null;
   }
 }

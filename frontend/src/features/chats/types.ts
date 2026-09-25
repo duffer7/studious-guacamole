@@ -4,9 +4,19 @@ export interface PublicUser {
   username: string;
   displayName: string | null;
   avatarUrl: string | null;
+  lastSeenAt?: string | null;
 }
 
 export type ChatType = 'direct' | 'group' | 'channel';
+
+export type ChatRole = 'owner' | 'admin' | 'member';
+
+export interface ChatMember extends PublicUser {
+  role: ChatRole;
+  joinedAt: string;
+  /** null — статус неизвестен (Redis недоступен). */
+  online?: boolean | null;
+}
 
 /** Сообщение (совпадает с backend MessageDto). */
 export interface Message {
@@ -30,8 +40,12 @@ export interface ChatSummary {
   type: ChatType;
   title: string | null;
   unreadCount: number;
+  /** id последнего прочитанного пользователем сообщения (null — не читал). */
+  lastReadMessageId: number | null;
   lastMessage: Message | null;
-  members: PublicUser[];
+  members: ChatMember[];
+  memberCount: number;
+  myRole: ChatRole;
 }
 
 /** Ответ истории сообщений (cursor-пагинация). */
@@ -48,6 +62,14 @@ export interface CreateDirectChatDto {
 export interface CreateGroupChatDto {
   title: string;
   targetUserIds: number[];
+}
+
+export interface AddMembersDto {
+  targetUserIds: number[];
+}
+
+export interface UpdateChatDto {
+  title: string;
 }
 
 /** Локальное оптимистичное сообщение (ещё не подтверждённое сервером). */

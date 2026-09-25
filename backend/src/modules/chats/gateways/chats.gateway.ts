@@ -8,7 +8,8 @@ import {
   ConnectedSocket,
   MessageBody,
 } from '@nestjs/websockets';
-import { forwardRef, Inject } from '@nestjs/common';
+import { forwardRef, Inject, OnModuleDestroy } from '@nestjs/common';
+import { UsersService } from '@modules/user/users.service';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { TokenStoreService } from '@modules/security/token-store.service';
@@ -23,9 +24,14 @@ import { ChatMembersRepository } from '@modules/chats/repositories/chat-members.
 import { JwtPayload } from '@modules/security/types';
 import { SendMessageDto } from '@modules/chats/dto/request/send-message.dto';
 
+const PRESENCE_REFRESH_MS = 20_000;
+
 @WebSocketGateway({ cors: true, namespace: '/chat' })
-export class ChatsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+export class ChatsGateway
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect, OnModuleDestroy
+{
   @WebSocketServer() server!: Server;
+  private presenceTimer: ReturnType<typeof setInterval> | undefined;
 
   constructor(
     private readonly jwt: JwtService,
@@ -35,9 +41,14 @@ export class ChatsGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     private readonly presenceService: PresenceService,
     private readonly callsService: CallsService,
     private readonly membersRepository: ChatMembersRepository,
+    private readonly usersService: UsersService,
   ) {}
 
   afterInit() {
+    this.presenceTimer = setInterval(() => {
+      void this.refreshPresence();
+    }, PRESENCE_REFRESH_MS);
+
     this.callsService.onEnded = (session, reason) => {
       const payload = { callId: session.id, reason };
       this.server.to(`user:${session.callerId}`).emit('call:ended', payload);
@@ -68,7 +79,7 @@ export class ChatsGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
         await client.join(`chat:${chatId}`);
       }
 
-      await this.presenceService.markOnline(payload.sub, payload.sid);
+      await this.presenceService.markOnline(payload.sub, client.id);
       this.server.emit('presence', { userId: payload.sub, online: true });
     } catch {
       client.disconnect(true);
@@ -89,9 +100,32 @@ export class ChatsGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
         }
       }
 
-      const stillOnline = await this.presenceService.markOffline(userId, client.data.sid);
-      if (!stillOnline) this.server.emit('presence', { userId, online: false });
+      const stillOnline = await this.presenceService.markOffline(userId, client.id);
+      if (!stillOnline) {
+        const lastSeenAt = new Date();
+        await this.usersService.recordLastSeen(userId, lastSeenAt).catch(() => undefined);
+        this.server.emit('presence', {
+          userId,
+          online: false,
+          lastSeenAt: lastSeenAt.toISOString(),
+        });
+      }
     }
+  }
+
+  onModuleDestroy() {
+    if (this.presenceTimer) clearInterval(this.presenceTimer);
+  }
+
+  private async refreshPresence() {
+    const sockets = await this.server.fetchSockets();
+    await Promise.all(
+      sockets.map((socket) => {
+        const userId = socket.data.userId as number | undefined;
+        if (!userId) return Promise.resolve();
+        return this.presenceService.refresh(userId, socket.id);
+      }),
+    );
   }
 
   /** Уведомляет участников о новом чате и подписывает их сокеты на комнату чата. */
@@ -117,6 +151,26 @@ export class ChatsGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     }
     // уже в чате — обновляем список участников
     this.server.to(`chat:${chatId}`).emit('chat:members:changed', { chatId });
+  }
+
+  /** Снимает удалённого участника с комнаты чата и рассылает событие остальным. */
+  async notifyMemberRemoved(chatId: number, userId: number) {
+    const sockets = await this.server.in(`user:${userId}`).fetchSockets();
+    for (const socket of sockets) {
+      socket.leave(`chat:${chatId}`);
+    }
+    const payload = { chatId, userId };
+    this.server.to(`user:${userId}`).emit('member:removed', payload);
+    this.server.to(`chat:${chatId}`).emit('member:removed', payload);
+    this.server.to(`chat:${chatId}`).emit('chat:members:changed', { chatId });
+  }
+
+  /** Рассылает обновлённую сводку чата участникам. */
+  async notifyChatUpdated(chatId: number, chat: unknown, userIds: number[]) {
+    this.server.to(`chat:${chatId}`).emit('chat:updated', chat);
+    for (const userId of userIds) {
+      this.server.to(`user:${userId}`).emit('chat:updated', chat);
+    }
   }
 
   @SubscribeMessage('message:send')

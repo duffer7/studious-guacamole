@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { UsersModule } from '@modules/user/users.module';
 import { ChatsController } from '@modules/chats/controllers/chats.controller';
 import { ChatsService } from '@modules/chats/services/chats.service';
 import { ChatsGateway } from '@modules/chats/gateways/chats.gateway';
@@ -9,6 +10,7 @@ import { PresenceService } from '@modules/chats/services/presence.service';
 import { CallsService } from '@modules/chats/services/calls.service';
 
 @Module({
+  imports: [UsersModule],
   controllers: [ChatsController],
   providers: [
     ChatsService,

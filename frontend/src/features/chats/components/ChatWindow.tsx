@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import {
+  Fragment,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,18 +21,21 @@ import {
   MessageScrollerViewport,
   useMessageScroller,
 } from '@/components/ui/message-scroller';
-import { ArrowLeftIcon, PaperclipIcon, SendIcon, VideoIcon } from 'lucide-react';
+import { ArrowLeftIcon, PaperclipIcon, SendIcon, UsersIcon, VideoIcon } from 'lucide-react';
 import { uploadAttachment } from '@features/chats/api';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { UserAvatarWithPresence } from '@features/chats/components/UserAvatarWithPresence';
+import { formatLastSeen } from '@features/chats/presence/formatLastSeen';
+import { usePresence } from '@features/chats/presence/usePresence';
+import { useAppSelector } from '@/store/hooks';
 import { useCall } from '@features/calls/CallProvider';
-import { chatAvatarUser } from '@features/chats/components/ChatList';
-import { mediaUrl } from '@/lib/mediaUrl';
+import { chatAvatarUser, chatDisplayName, chatSubtitle, groupInitials } from '@features/chats/components/ChatList';
+import { ChatMembersPanel } from '@features/chats/components/ChatMembersPanel';
 import { useMessages } from '@features/chats/hooks/useMessages';
 import { useSendMessage } from '@features/chats/hooks/useSendMessage';
 import { useMarkRead } from '@features/chats/hooks/useMarkRead';
 import { MessageBubble } from '@features/chats/components/MessageBubble';
-import type { ChatSummary, PublicUser } from '@features/chats/types';
-import { chatDisplayName } from '@features/chats/components/ChatList';
+import type { ChatSummary, Message, PublicUser } from '@features/chats/types';
 
 interface ChatWindowProps {
   chat: ChatSummary;
@@ -35,7 +46,21 @@ interface ChatWindowProps {
 export function ChatWindow({ chat, currentUserId, onBack }: ChatWindowProps) {
   const call = useCall();
   const peer = chatAvatarUser(chat, currentUserId);
-  const initials = (peer?.displayName || peer?.username || '?').slice(0, 2).toUpperCase();
+  const peerPresence = usePresence(peer?.id, peer);
+  const presenceByUser = useAppSelector((state) => state.presence.byUserId);
+  const onlineCount = chat.members.filter((member) => {
+    const live = presenceByUser[member.id];
+    return (live?.online ?? member.online) === true;
+  }).length;
+  const initials =
+    chat.type === 'direct'
+      ? (peer?.displayName || peer?.username || '?').slice(0, 2).toUpperCase()
+      : groupInitials(chat);
+  const subtitle =
+    chat.type === 'direct'
+      ? formatLastSeen(peerPresence.lastSeenAt, peerPresence.online)
+      : `${onlineCount} из ${chat.memberCount} онлайн`;
+  const [membersOpen, setMembersOpen] = useState(false);
   // сообщения считаем прочитанными, только если пользователь реально смотрит на чат:
   // вкладка активна ИЛИ поле ввода в фокусе (например, во время печати)
   const [inputFocused, setInputFocused] = useState(false);
@@ -63,19 +88,35 @@ export function ChatWindow({ chat, currentUserId, onBack }: ChatWindowProps) {
       <div className="flex h-full min-h-0 flex-col">
         <header className="flex items-center gap-3 border-b border-border/70 px-3 py-2.5">
           {onBack && (
-            <Button variant="ghost" size="icon" className="md:hidden" onClick={onBack} aria-label="К списку чатов">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              onClick={onBack}
+              aria-label="К списку чатов"
+            >
               <ArrowLeftIcon />
             </Button>
           )}
-          <Avatar className="size-9">
-            {peer?.avatarUrl && <AvatarImage src={mediaUrl(peer.avatarUrl)} />}
-            <AvatarFallback>{initials}</AvatarFallback>
-          </Avatar>
+          {chat.type === 'direct' && peer ? (
+            <UserAvatarWithPresence
+              userId={peer.id}
+              avatarUrl={peer.avatarUrl}
+              fallback={initials}
+              className="size-9"
+              online={peer.online}
+              lastSeenAt={peer.lastSeenAt}
+            />
+          ) : (
+            <Avatar className="size-9">
+              <AvatarFallback>{initials}</AvatarFallback>
+            </Avatar>
+          )}
           <div className="min-w-0 flex-1">
-            <h2 className="truncate text-sm font-semibold">{chatDisplayName(chat, currentUserId)}</h2>
-            <p className="text-xs text-muted-foreground">
-              {chat.type === 'direct' ? 'Личный чат' : 'Группа'}
-            </p>
+            <h2 className="truncate text-sm font-semibold">
+              {chatDisplayName(chat, currentUserId)}
+            </h2>
+            <p className="text-xs text-muted-foreground">{subtitle || chatSubtitle(chat)}</p>
           </div>
           {chat.type === 'direct' && peer && (
             <Button
@@ -88,7 +129,27 @@ export function ChatWindow({ chat, currentUserId, onBack }: ChatWindowProps) {
               <VideoIcon />
             </Button>
           )}
+          {chat.type === 'group' && (
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Участники"
+              onClick={() => setMembersOpen(true)}
+            >
+              <UsersIcon />
+            </Button>
+          )}
         </header>
+
+        {chat.type === 'group' && (
+          <ChatMembersPanel
+            chat={chat}
+            currentUserId={currentUserId}
+            open={membersOpen}
+            onOpenChange={setMembersOpen}
+            onLeft={() => onBack?.()}
+          />
+        )}
 
         <MessageList
           chat={chat}
@@ -112,6 +173,53 @@ interface MessageListProps {
   shouldMarkRead: boolean;
 }
 
+/** Сколько держать полоску после того, как низ ленты уже на экране. */
+const UNREAD_DIVIDER_HIDE_MS = 2500;
+
+interface UnreadMarker {
+  chatId: number;
+  /** id последнего прочитанного на момент открытия; null — не читали ничего. */
+  boundary: number | null;
+  unreadCount: number;
+  visible: boolean;
+}
+
+function captureUnreadMarker(chat: ChatSummary): UnreadMarker {
+  return {
+    chatId: chat.id,
+    boundary: chat.lastReadMessageId ?? null,
+    unreadCount: chat.unreadCount,
+    visible: chat.unreadCount > 0,
+  };
+}
+
+function findFirstUnreadIndex(
+  messages: Message[],
+  marker: UnreadMarker,
+  currentUserId: number,
+): number {
+  if (!marker.visible || marker.unreadCount <= 0) return -1;
+
+  const boundary = marker.boundary;
+  if (boundary !== null) {
+    return messages.findIndex(
+      (message) =>
+        message.id > 0 && message.senderId !== currentUserId && message.id > boundary,
+    );
+  }
+
+  let remaining = marker.unreadCount;
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message.id <= 0 || message.senderId === currentUserId) continue;
+    remaining -= 1;
+    if (remaining === 0) return index;
+  }
+  return messages.findIndex(
+    (message) => message.id > 0 && message.senderId !== currentUserId,
+  );
+}
+
 /**
  * Список сообщений. Рендерится внутри `MessageScrollerProvider`,
  * чтобы иметь доступ к скроллеру через `useMessageScroller`.
@@ -121,6 +229,7 @@ function MessageList({ chat, currentUserId, shouldMarkRead }: MessageListProps) 
     useMessages(chat.id);
   const markRead = useMarkRead();
   const { scrollToEnd } = useMessageScroller();
+  const viewportRef = useRef<HTMLDivElement>(null);
 
   const membersById = useMemo(() => {
     const map = new Map<number, PublicUser>();
@@ -128,8 +237,22 @@ function MessageList({ chat, currentUserId, shouldMarkRead }: MessageListProps) 
     return map;
   }, [chat.members]);
 
+  // граница непрочитанных фиксируется в момент открытия чата и не сдвигается,
+  // когда список чатов оптимистично обнуляет unreadCount
+  const [unreadMarker, setUnreadMarker] = useState<UnreadMarker>(() =>
+    captureUnreadMarker(chat),
+  );
+  if (unreadMarker.chatId !== chat.id) {
+    setUnreadMarker(captureUnreadMarker(chat));
+  }
+
   // id последнего сообщения, о прочтении которого уже сообщили серверу
   const lastReadIdRef = useRef(0);
+  const seenChatIdRef = useRef(chat.id);
+  if (seenChatIdRef.current !== chat.id) {
+    seenChatIdRef.current = chat.id;
+    lastReadIdRef.current = 0;
+  }
 
   const lastMessage = messages[messages.length - 1];
   const lastMessageId = lastMessage?.id ?? 0;
@@ -150,19 +273,49 @@ function MessageList({ chat, currentUserId, shouldMarkRead }: MessageListProps) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chat.id, currentUserId, shouldMarkRead, isServerMessage, lastMessageId]);
 
-  // при появлении новых сообщений прокручиваем к концу
+  const firstUnreadIndex = findFirstUnreadIndex(messages, unreadMarker, currentUserId);
+  const lastMessageKey = lastMessage?.clientMessageId ?? '';
+
+  // полоска остаётся, пока низ ленты не показан, затем уходит
   useEffect(() => {
-    if (messages.length === 0) return;
-    scrollToEnd({ behavior: 'smooth' });
-    // реакция именно на количество сообщений (scrollToEnd стабилен)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chat.id, messages.length]);
+    if (!shouldMarkRead || !unreadMarker.visible || firstUnreadIndex < 0) return;
+
+    const timer = window.setTimeout(() => {
+      setUnreadMarker((prev) => (prev.visible ? { ...prev, visible: false } : prev));
+    }, UNREAD_DIVIDER_HIDE_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [shouldMarkRead, unreadMarker.visible, unreadMarker.chatId, firstUnreadIndex]);
+
+  // Библиотечный scrollToEnd срабатывает до финальной высоты списка и оставляет
+  // несколько сообщений ниже экрана. Дожимаем scrollTop, пока высота устаканится.
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport || messages.length === 0) return;
+
+    const pin = () => {
+      viewport.scrollTop = viewport.scrollHeight;
+    };
+
+    scrollToEnd({ behavior: 'instant' });
+    pin();
+
+    const observer = new ResizeObserver(pin);
+    const content = viewport.firstElementChild;
+    if (content) observer.observe(content);
+
+    const stop = window.setTimeout(() => observer.disconnect(), 500);
+    return () => {
+      observer.disconnect();
+      window.clearTimeout(stop);
+    };
+  }, [chat.id, lastMessageKey, scrollToEnd, messages.length]);
 
   const hasMessages = messages.length > 0;
 
   return (
     <MessageScroller className="min-h-0 flex-1">
-      <MessageScrollerViewport className="flex flex-col p-4">
+      <MessageScrollerViewport ref={viewportRef} className="flex flex-col px-4 pt-4">
         <MessageScrollerContent className="mt-auto min-h-0 gap-3">
           {hasNextPage && (
             <div className="flex justify-center pb-2">
@@ -199,22 +352,40 @@ function MessageList({ chat, currentUserId, shouldMarkRead }: MessageListProps) 
           )}
 
           {messages.map((message, index) => (
-            <MessageScrollerItem
-              key={message.clientMessageId}
-              messageId={message.clientMessageId}
-              scrollAnchor={index === messages.length - 1}
-            >
-              <MessageBubble
-                message={message}
-                isOwn={message.senderId === currentUserId}
-                sender={membersById.get(message.senderId)}
-              />
-            </MessageScrollerItem>
+            <Fragment key={message.clientMessageId}>
+              {index === firstUnreadIndex && (
+                <MessageScrollerItem messageId={`unread-divider-${chat.id}`}>
+                  <UnreadDivider />
+                </MessageScrollerItem>
+              )}
+              <MessageScrollerItem messageId={message.clientMessageId}>
+                <MessageBubble
+                  message={message}
+                  isOwn={message.senderId === currentUserId}
+                  sender={membersById.get(message.senderId)}
+                />
+              </MessageScrollerItem>
+            </Fragment>
           ))}
+          {hasMessages && <div aria-hidden className="h-3 shrink-0 -mt-3" />}
         </MessageScrollerContent>
       </MessageScrollerViewport>
       <MessageScrollerButton />
     </MessageScroller>
+  );
+}
+
+function UnreadDivider() {
+  return (
+    <div
+      className="flex items-center gap-3 py-1"
+      role="separator"
+      aria-label="Непрочитанные сообщения"
+    >
+      <div className="h-px flex-1 bg-primary/50" />
+      <span className="shrink-0 text-xs font-medium text-primary">Непрочитанные сообщения</span>
+      <div className="h-px flex-1 bg-primary/50" />
+    </div>
   );
 }
 
@@ -250,7 +421,11 @@ function MessageComposer({ chat, currentUserId, onFocusChange }: MessageComposer
     reader.onload = () => {
       const result = String(reader.result ?? '');
       const data = result.slice(result.indexOf(',') + 1);
-      void uploadAttachment(chat.id, { name: file.name, mime: file.type || 'application/octet-stream', data })
+      void uploadAttachment(chat.id, {
+        name: file.name,
+        mime: file.type || 'application/octet-stream',
+        data,
+      })
         .then((attachment) =>
           sendMessage({
             chatId: chat.id,

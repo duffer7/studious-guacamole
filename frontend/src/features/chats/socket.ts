@@ -43,7 +43,9 @@ export interface ServerToClientEvents {
   'chat:new': (chat: ChatSummary) => void;
   'chat:member:added': (payload: { chatId: number }) => void;
   'chat:members:changed': (payload: { chatId: number }) => void;
-  presence: (payload: { userId: number; online: boolean }) => void;
+  'member:removed': (payload: { chatId: number; userId: number }) => void;
+  'chat:updated': (chat: ChatSummary) => void;
+  presence: (payload: { userId: number; online: boolean; lastSeenAt?: string | null }) => void;
   typing: (payload: { chatId: number; userId: number; isTyping: boolean }) => void;
   'call:incoming': (payload: { callId: string; chatId: number; fromUserId: number }) => void;
   'call:accepted': (payload: { callId: string }) => void;

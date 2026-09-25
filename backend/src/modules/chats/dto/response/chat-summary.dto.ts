@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { MessageDto } from '@modules/chats/dto/response/message.dto';
-import { type PublicUserDto } from '@modules/user/dto/public-user.dto';
+import { ChatMemberDto } from '@modules/chats/dto/response/chat-member.dto';
+import { ChatRole } from '@modules/chats/types/chat-role.enum';
 
 export class ChatSummaryDto {
   @ApiProperty({ example: 1 })
@@ -15,9 +16,22 @@ export class ChatSummaryDto {
   @ApiProperty({ example: 3 })
   unreadCount: number;
 
+  @ApiPropertyOptional({
+    example: 42,
+    nullable: true,
+    description: 'id последнего прочитанного пользователем сообщения (null — не читал)',
+  })
+  lastReadMessageId: number | null;
+
   @ApiPropertyOptional({ type: MessageDto, nullable: true })
   lastMessage: MessageDto | null;
 
-  @ApiPropertyOptional({ type: [Object], description: 'Участники (для UI аватаров)' })
-  members: PublicUserDto[];
+  @ApiPropertyOptional({ type: [ChatMemberDto], description: 'Участники (для UI аватаров)' })
+  members: ChatMemberDto[];
+
+  @ApiProperty({ example: 3 })
+  memberCount: number;
+
+  @ApiProperty({ enum: ChatRole })
+  myRole: ChatRole;
 }

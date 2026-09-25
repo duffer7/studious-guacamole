@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { eq, ilike, or } from 'drizzle-orm';
+import { eq, ilike, inArray, or } from 'drizzle-orm';
 import { DB, type Database } from '@db/db.provider';
 import { users, type NewUserRow, type UserRow } from '@db/schema';
 import * as bcrypt from 'bcrypt';
@@ -12,6 +12,11 @@ export class UsersRepository {
     return this.db.query.users.findFirst({
       where: eq(users.id, id),
     });
+  }
+
+  async findByIds(ids: number[]): Promise<UserRow[]> {
+    if (ids.length === 0) return [];
+    return this.db.query.users.findMany({ where: inArray(users.id, ids) });
   }
 
   findByUsername(username: string): Promise<UserRow | undefined> {
@@ -62,6 +67,10 @@ export class UsersRepository {
       .where(eq(users.id, userId))
       .returning();
     return updated;
+  }
+
+  async updateLastSeen(userId: number, lastSeenAt: Date): Promise<void> {
+    await this.db.update(users).set({ lastSeenAt }).where(eq(users.id, userId));
   }
 
   async updateMfa(userId: number, mfaEnabled: boolean, mfaSecret: string | null): Promise<UserRow> {

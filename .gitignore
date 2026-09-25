@@ -27,6 +27,12 @@ backend/tsconfig.build.tsbuildinfo
 **/.continuation/
 **/*.log
 **/.cursorrules
+# CodeGraph (Индексы, кэш и локальные трейлы)
+.codegraph/
+
+# Continue (Локальные индексы и сессии AI-ассистента)
+.continue/
+.continueignore
 
 # Игнорировать все DS_Store файлы
 .DS_Store

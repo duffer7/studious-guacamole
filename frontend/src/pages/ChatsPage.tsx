@@ -43,7 +43,7 @@ export function ChatsPage() {
             </div>
             <NewChatDialog onCreated={setActiveChatId} />
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+          <div className="min-h-0 flex-1 overflow-y-auto p-2 pb-2">
             <ChatList
               chats={chats ?? []}
               currentUserId={currentUserId}

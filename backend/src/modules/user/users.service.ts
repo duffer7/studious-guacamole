@@ -11,8 +11,16 @@ export class UsersService {
     private readonly usersRepository: UsersRepository,
     private readonly storage: StorageService,
   ) {}
+  recordLastSeen(userId: number, lastSeenAt: Date): Promise<void> {
+    return this.usersRepository.updateLastSeen(userId, lastSeenAt);
+  }
+
   findById(id: number): Promise<UserRow | undefined> {
     return this.usersRepository.findById(id);
+  }
+
+  findByIds(ids: number[]): Promise<UserRow[]> {
+    return this.usersRepository.findByIds(ids);
   }
 
   findByUsername(username: string): Promise<UserRow | undefined> {
