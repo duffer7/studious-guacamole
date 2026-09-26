@@ -1,8 +1,11 @@
 import { Outlet, createFileRoute, redirect } from '@tanstack/react-router';
 import { store } from '@/store';
+import { useEffect } from 'react';
 import { useChatSocket } from '@features/chats/hooks/useChatSocket';
 import { CallProvider } from '@features/calls/CallProvider';
 import { CallOverlay } from '@features/calls/CallOverlay';
+import { useNotificationClick } from '@features/notifications/useNotificationClick';
+import { syncSubscription } from '@features/notifications/push';
 
 export const Route = createFileRoute('/_authed')({
   beforeLoad: async ({ location, context }) => {
@@ -23,6 +26,11 @@ export const Route = createFileRoute('/_authed')({
 function AuthedLayout() {
   // держим WS-соединение открытым на протяжении всей авторизованной зоны
   useChatSocket();
+  useNotificationClick();
+
+  useEffect(() => {
+    void syncSubscription().catch(() => undefined);
+  }, []);
 
   return (
     <CallProvider>

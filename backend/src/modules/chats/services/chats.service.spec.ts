@@ -49,6 +49,10 @@ function serviceWith(overrides: Record<string, unknown>) {
     {} as never,
     { ...usersService, ...((overrides.usersService as object) ?? {}) } as never,
     { isOnlineMany: vi.fn().mockResolvedValue(new Map()) } as never,
+    {
+      sendToUsers: vi.fn().mockResolvedValue(undefined),
+      buildMessagePayload: vi.fn().mockReturnValue({ type: 'message' }),
+    } as never,
   );
 
   return { service, chatsGateway, chatMembersRepository, chatsRepository, usersService };

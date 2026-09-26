@@ -8,15 +8,8 @@ services:
     volumes:
       - ./backend:/app
       - /app/node_modules # Изолируем node_modules внутри контейнера
-    environment:
-      - NODE_ENV=development
-      - DATABASE_URL=postgres://postgres:postgres@db:5432/messenger
-      - REDIS_URL=redis://redis:6379
-      - S3_ENDPOINT=http://minio:9000
-      - S3_ACCESS_KEY=minio
-      - S3_SECRET_KEY=minio12345
-      - S3_BUCKET=messenger
-      - S3_REGION=us-east-1
+    env_file:
+      - ./backend/.env
     depends_on:
       db:
         condition: service_healthy
@@ -67,7 +60,7 @@ services:
       - db_data:/var/lib/postgresql/data
 
   minio:
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    image: cgr.dev/chainguard/minio:latest
     command: server /data --console-address ":9001"
     ports:
       - '9000:9000'

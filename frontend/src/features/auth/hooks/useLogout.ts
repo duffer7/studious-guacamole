@@ -4,6 +4,7 @@ import { logoutAllUser, logoutUser } from '@features/auth/auth.slice';
 import { useRouter } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { disconnectSocket } from '@features/chats/socket';
+import { disablePush } from '@features/notifications/push';
 import type { AsyncThunk } from '@reduxjs/toolkit';
 
 export function useLogout() {
@@ -14,6 +15,7 @@ export function useLogout() {
   const run = useCallback(
     async (thunk: AsyncThunk<void, void, object>) => {
       try {
+        await disablePush().catch(() => undefined);
         await dispatch(thunk()).unwrap();
       } finally {
         // рвём WS и вычищаем кэш прошлой сессии (чаты, сообщения, профиль),

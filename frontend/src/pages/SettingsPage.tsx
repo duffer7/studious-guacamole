@@ -8,6 +8,7 @@ import {
   saveMediaPrefs,
   type MediaPrefs,
 } from '@features/media/preferences';
+import { NotificationSettings } from '@features/notifications/NotificationSettings';
 
 export function SettingsPage() {
   const { logout, logoutAll } = useLogout();
@@ -100,6 +101,8 @@ export function SettingsPage() {
           {preview ? 'Обновить предпросмотр' : 'Разрешить камеру и микрофон'}
         </Button>
       </section>
+
+      <NotificationSettings />
 
       <section className="flex flex-wrap gap-2">
         <Button variant="destructive" onClick={() => void logout()}>

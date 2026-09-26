@@ -5,6 +5,7 @@ import { setCredentials, setUser } from '@features/auth/auth.slice';
 import { setTokens } from '@/api/client';
 import { getMe, login } from '@features/auth/api';
 import { disconnectSocket } from '@features/chats/socket';
+import { syncSubscription } from '@features/notifications/push';
 import type { LoginDto, LoginResult, MfaRequired } from '@features/auth/types';
 import { useNavigate } from '@tanstack/react-router';
 
@@ -42,6 +43,7 @@ export function useLogin() {
         setCredentials({ accessToken: result.access_token, refreshToken: result.refresh_token }),
       );
       dispatch(setUser(user));
+      void syncSubscription().catch(() => undefined);
 
       return result;
     },

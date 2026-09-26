@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import { Spinner } from '@components/ui/spinner';
 import { useChats } from '@features/chats/hooks/useChats';
 import { ChatList } from '@features/chats/components/ChatList';
@@ -6,13 +7,29 @@ import { ChatWindow } from '@features/chats/components/ChatWindow';
 import { NewChatDialog } from '@features/chats/components/NewChatDialog';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@features/auth/auth.slice';
+import { setTrackedActiveChat } from '@features/notifications/activeChat';
 import { cn } from 'cn';
 import { MessageSquareIcon } from 'lucide-react';
 
-export function ChatsPage() {
+export function ChatsPage({ initialChatId }: { initialChatId?: number }) {
   const user = useAppSelector(selectUser);
+  const navigate = useNavigate();
   const { data: chats, isLoading } = useChats();
-  const [activeChatId, setActiveChatId] = useState<number | null>(null);
+  const [activeChatId, setActiveChatId] = useState<number | null>(initialChatId ?? null);
+
+  useEffect(() => {
+    if (initialChatId) setActiveChatId(initialChatId);
+  }, [initialChatId]);
+
+  useEffect(() => {
+    setTrackedActiveChat(activeChatId);
+    return () => setTrackedActiveChat(null);
+  }, [activeChatId]);
+
+  function selectChat(chatId: number | null) {
+    setActiveChatId(chatId);
+    void navigate({ to: '/chats', search: chatId ? { c: chatId } : {}, replace: true });
+  }
 
   const currentUserId = user?.id;
   const activeChat = chats?.find((c) => c.id === activeChatId) ?? null;
@@ -41,7 +58,7 @@ export function ChatsPage() {
               </p>
               <h1 className="text-lg font-semibold">Чаты</h1>
             </div>
-            <NewChatDialog onCreated={setActiveChatId} />
+            <NewChatDialog onCreated={selectChat} />
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto p-2 pb-2">
             <ChatList
@@ -49,7 +66,7 @@ export function ChatsPage() {
               currentUserId={currentUserId}
               activeChatId={activeChatId}
               isLoading={isLoading}
-              onSelect={setActiveChatId}
+              onSelect={selectChat}
             />
           </div>
         </aside>
@@ -59,7 +76,7 @@ export function ChatsPage() {
             <ChatWindow
               chat={activeChat}
               currentUserId={currentUserId}
-              onBack={() => setActiveChatId(null)}
+              onBack={() => selectChat(null)}
             />
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">

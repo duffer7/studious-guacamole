@@ -12,6 +12,15 @@ import { useQueryClient } from '@tanstack/react-query';
 import { chatKeys } from '@features/chats/queryKeys';
 import { connectSocket, type IceCandidatePayload, type SessionDescription } from '@features/chats/socket';
 import { assertUserMedia, callConstraints } from '@features/media/preferences';
+import {
+  closeBrowserNotifications,
+  showBrowserNotification,
+} from '@features/notifications/browserNotification';
+import {
+  closeBrowserNotifications,
+  showBrowserNotification,
+} from '@features/notifications/browserNotification';
+import { sound } from '@features/notifications/sound';
 import type { ChatSummary, PublicUser } from '@features/chats/types';
 
 const ICE: RTCConfiguration = {
@@ -77,6 +86,15 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     phaseRef.current = phase;
+    sound.setInCall(phase !== 'idle');
+    if (phase === 'incoming') sound.loop('ringtone');
+    else sound.stop('ringtone');
+    if (phase === 'outgoing') sound.loop('outgoing');
+    else sound.stop('outgoing');
+    const callId = callIdRef.current;
+    if (phase !== 'incoming' && callId) {
+      void closeBrowserNotifications(`call:${callId}`);
+    }
   }, [phase]);
 
   const lookupName = useCallback(
@@ -245,9 +263,20 @@ export function CallProvider({ children }: { children: ReactNode }) {
         }
         callIdRef.current = payload.callId;
         roleRef.current = 'callee';
-        setPeerName(lookupName(payload.chatId, payload.fromUserId));
+        const name = lookupName(payload.chatId, payload.fromUserId);
+        setPeerName(name);
         setError(null);
         setPhase('incoming');
+        if (document.visibilityState !== 'visible') {
+          void showBrowserNotification({
+            title: name,
+            body: 'Входящий звонок',
+            tag: `call:${payload.callId}`,
+            chatId: payload.chatId,
+            callId: payload.callId,
+            type: 'call',
+          });
+        }
       };
 
       const onAccepted = (payload: { callId: string }) => {

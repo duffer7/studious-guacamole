@@ -8,9 +8,10 @@ import { ChatMembersRepository } from '@modules/chats/repositories/chat-members.
 import { MessagesRepository } from '@modules/chats/repositories/messages.repository';
 import { PresenceService } from '@modules/chats/services/presence.service';
 import { CallsService } from '@modules/chats/services/calls.service';
+import { PushModule } from '@modules/push/push.module';
 
 @Module({
-  imports: [UsersModule],
+  imports: [UsersModule, PushModule],
   controllers: [ChatsController],
   providers: [
     ChatsService,

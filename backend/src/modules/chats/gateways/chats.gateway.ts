@@ -23,6 +23,8 @@ import {
 import { ChatMembersRepository } from '@modules/chats/repositories/chat-members.repository';
 import { JwtPayload } from '@modules/security/types';
 import { SendMessageDto } from '@modules/chats/dto/request/send-message.dto';
+import { PushService } from '@modules/push/push.service';
+import type { CallSession } from '@modules/chats/services/calls.service';
 
 const PRESENCE_REFRESH_MS = 20_000;
 
@@ -42,6 +44,7 @@ export class ChatsGateway
     private readonly callsService: CallsService,
     private readonly membersRepository: ChatMembersRepository,
     private readonly usersService: UsersService,
+    private readonly pushService: PushService,
   ) {}
 
   afterInit() {
@@ -53,6 +56,11 @@ export class ChatsGateway
       const payload = { callId: session.id, reason };
       this.server.to(`user:${session.callerId}`).emit('call:ended', payload);
       this.server.to(`user:${session.calleeId}`).emit('call:ended', payload);
+      if (reason === 'timeout') {
+        this.pushMissedCall(session);
+      } else {
+        this.dismissCallPush(session);
+      }
     };
   }
 
@@ -81,6 +89,7 @@ export class ChatsGateway
 
       await this.presenceService.markOnline(payload.sub, client.id);
       this.server.emit('presence', { userId: payload.sub, online: true });
+      this.replayRingingCall(client, payload.sub);
     } catch {
       client.disconnect(true);
     }
@@ -97,6 +106,7 @@ export class ChatsGateway
             callId: session.id,
             reason: 'disconnect',
           });
+          this.dismissCallPush(session);
         }
       }
 
@@ -218,6 +228,7 @@ export class ChatsGateway
       chatId: session.chatId,
       fromUserId: callerId,
     });
+    this.pushIncomingCall(session);
     return { callId: session.id, calleeId: session.calleeId };
   }
 
@@ -226,6 +237,7 @@ export class ChatsGateway
     const userId = client.data.userId as number;
     const session = this.callsService.accept(userId, dto.callId);
     this.server.to(`user:${session.callerId}`).emit('call:accepted', { callId: session.id });
+    this.dismissCallPush(session);
     return { ok: true };
   }
 
@@ -235,6 +247,7 @@ export class ChatsGateway
     const session = this.callsService.reject(userId, dto.callId);
     const peerId = this.callsService.peerOf(session, userId);
     this.server.to(`user:${peerId}`).emit('call:ended', { callId: session.id, reason: 'rejected' });
+    this.dismissCallPush(session);
     return { ok: true };
   }
 
@@ -276,7 +289,60 @@ export class ChatsGateway
     const peerId = this.callsService.peerOf(session, userId);
     this.server.to(`user:${peerId}`).emit('call:ended', { callId: session.id, reason: 'hangup' });
     this.server.to(`user:${userId}`).emit('call:ended', { callId: session.id, reason: 'hangup' });
+    this.dismissCallPush(session);
     return { ok: true };
+  }
+
+  private replayRingingCall(client: Socket, userId: number) {
+    const session = this.callsService.findRingingFor(userId);
+    if (!session || session.calleeId !== userId) return;
+    client.emit('call:incoming', {
+      callId: session.id,
+      chatId: session.chatId,
+      fromUserId: session.callerId,
+    });
+  }
+
+  private pushIncomingCall(session: CallSession) {
+    void this.dispatchIncomingCallPush(session).catch(() => undefined);
+  }
+
+  private async dispatchIncomingCallPush(session: CallSession): Promise<void> {
+    const online = await this.presenceService.isOnline(session.calleeId);
+    if (online !== false) return;
+    const caller = await this.usersService.findById(session.callerId);
+    if (!caller) return;
+    await this.pushService.sendToUsers(
+      [session.calleeId],
+      this.pushService.buildCallPayload(session.id, caller, session.chatId),
+    );
+  }
+
+  private pushMissedCall(session: CallSession) {
+    void this.dispatchMissedCallPush(session).catch(() => undefined);
+  }
+
+  private async dispatchMissedCallPush(session: CallSession): Promise<void> {
+    const online = await this.presenceService.isOnline(session.calleeId);
+    if (online !== false) {
+      this.dismissCallPush(session);
+      return;
+    }
+    const caller = await this.usersService.findById(session.callerId);
+    if (!caller) return;
+    await this.pushService.sendToUsers(
+      [session.calleeId],
+      this.pushService.buildMissedCallPayload(session.id, caller, session.chatId),
+    );
+  }
+
+  private dismissCallPush(session: CallSession) {
+    void this.pushService
+      .sendToUsers(
+        [session.callerId, session.calleeId],
+        this.pushService.buildCallDismissPayload(session.id),
+      )
+      .catch(() => undefined);
   }
 
   private forwardDescription(

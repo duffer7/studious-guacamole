@@ -26,6 +26,7 @@ import { ChatRole, canManageMembers } from '@modules/chats/types/chat-role.enum'
 import { PublicUserDto } from '@modules/user/dto/public-user.dto';
 import { UsersService } from '@modules/user/users.service';
 import { PresenceService } from '@modules/chats/services/presence.service';
+import { PushService } from '@modules/push/push.service';
 import { StorageService } from '@/storage/storage.service';
 import { AttachmentRefDto } from '@modules/chats/dto/request/send-message.dto';
 import { UploadAttachmentDto } from '@modules/chats/dto/request/upload-attachment.dto';
@@ -42,6 +43,7 @@ export class ChatsService {
     private readonly storage: StorageService,
     private readonly usersService: UsersService,
     private readonly presenceService: PresenceService,
+    private readonly pushService: PushService,
   ) {}
 
   async getChatIdsByMemberId(userId: number): Promise<number[] | undefined> {
@@ -273,9 +275,45 @@ export class ChatsService {
       this.chatsGateway.server.to(`user:${memberId}`).emit('message:new', messageDto);
     }
 
-    // await this.push.notifyOfflineMembers(dto.chatId, senderId, message);
+    void this.notifyOfflineMembers(memberIds, senderId, messageDto);
 
     return messageDto;
+  }
+
+  /** Пуш только тем, у кого точно нет живого сокета. Redis null — не шлём. */
+  private notifyOfflineMembers(
+    memberIds: number[],
+    senderId: number,
+    message: MessageDto,
+  ): void {
+    void this.dispatchMessagePush(memberIds, senderId, message).catch(() => undefined);
+  }
+
+  private async dispatchMessagePush(
+    memberIds: number[],
+    senderId: number,
+    message: MessageDto,
+  ): Promise<void> {
+    const recipients = memberIds.filter((id) => id !== senderId);
+    if (recipients.length === 0) return;
+
+    const presence = await this.presenceService.isOnlineMany(recipients);
+    const offline = recipients.filter((id) => presence.get(id) === false);
+    if (offline.length === 0) return;
+
+    const sender = await this.usersService.findById(senderId);
+    if (!sender) return;
+
+    const chat = await this.chatsRepository.findOneById(message.chatId);
+    const chatTitle =
+      chat && (chat.type === ChatType.group || chat.type === ChatType.channel)
+        ? (chat.title ?? 'Чат')
+        : '';
+
+    await this.pushService.sendToUsers(
+      offline,
+      this.pushService.buildMessagePayload(message, sender, chatTitle),
+    );
   }
 
   private toMessageDto(m: MessageRow): MessageDto {

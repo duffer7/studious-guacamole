@@ -50,7 +50,8 @@
     "pino-http": "^10.4.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.24",
@@ -64,6 +65,7 @@
     "@types/passport-jwt": "^4.0.1",
     "@types/pg": "^8.11.10",
     "@types/supertest": "^6.0.2",
+    "@types/web-push": "^3.6.4",
     "@vitest/coverage-v8": "^5.0.1",
     "drizzle-kit": "^0.31.11",
     "oxlint": "^0.16.0",

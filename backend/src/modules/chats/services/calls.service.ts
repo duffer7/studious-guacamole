@@ -156,6 +156,15 @@ export class CallsService {
     return [session];
   }
 
+  /** Живая сессия гудков для пользователя (догон call:incoming при reconnect). */
+  findRingingFor(userId: number): CallSession | undefined {
+    const callId = this.byUser.get(userId);
+    if (!callId) return undefined;
+    const session = this.byId.get(callId);
+    if (!session || session.state !== 'ringing') return undefined;
+    return session;
+  }
+
   peerOf(session: CallSession, userId: number): number {
     return session.callerId === userId ? session.calleeId : session.callerId;
   }

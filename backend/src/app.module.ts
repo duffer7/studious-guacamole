@@ -8,6 +8,7 @@ import { UsersModule } from '@modules/user/users.module';
 import { AuthModule } from '@modules/auth/auth.module';
 import { RedisModule } from '@/redis/redis.module';
 import { ChatModule } from '@modules/chats/chat.module';
+import { PushModule } from '@modules/push/push.module';
 import { StorageModule } from '@/storage/storage.module';
 
 const isProduction = process.env['NODE_ENV'] === 'production';
@@ -28,6 +29,7 @@ const isProduction = process.env['NODE_ENV'] === 'production';
     SecurityModule,
     UsersModule,
     AuthModule,
+    PushModule,
     ChatModule,
   ],
   controllers: [AppController],
